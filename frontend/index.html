@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOIS Enterprise Scanner</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .search-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .search-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .result-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .result-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-section h2::before {
+            content: "●";
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+
+        .info-value {
+            color: #333;
+            font-size: 1.1em;
+            word-break: break-all;
+        }
+
+        .risk-score {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .risk-level {
+            display: inline-block;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .risk-low {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .risk-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .risk-high {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .risk-critical {
+            background: #dc3545;
+            color: white;
+        }
+
+        .risk-list {
+            text-align: left;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .risk-item {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .risk-item.high {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+        }
+
+        .risk-item.medium {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+
+        .risk-item.low {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+        }
+
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 5px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .search-form {
+                flex-direction: column;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 WHOIS Enterprise Scanner</h1>
+            <p>Comprehensive Domain Intelligence & Security Analysis</p>
+        </div>
+
+        <div class="search-box">
+            <form class="search-form" id="searchForm">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="domainInput" 
+                    placeholder="Enter domain (e.g., example.com)"
+                    required
+                >
+                <button type="submit" class="search-btn" id="searchBtn">Scan Domain</button>
+            </form>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Scanning domain... Please wait</p>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('searchForm');
+        const input = document.getElementById('domainInput');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const searchBtn = document.getElementById('searchBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const domain = input.value.trim();
+            
+            if (!domain) return;
+
+            loading.classList.add('active');
+            results.classList.remove('active');
+            results.innerHTML = '';
+            searchBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/api/scan?domain=${encodeURIComponent(domain)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Scan failed');
+                }
+
+                displayResults(data, domain);
+            } catch (error) {
+                results.innerHTML = `
+                    <div class="result-section">
+                        <div class="error">
+                            <strong>Error:</strong> ${error.message}
+                        </div>
+                    </div>
+                `;
+                results.classList.add('active');
+            } finally {
+                loading.classList.remove('active');
+                searchBtn.disabled = false;
+            }
+        });
+
+        function displayResults(data, domain) {
+            let html = '';
+
+            // Risk Score
+            if (data.riskScore) {
+                const riskClass = `risk-${data.riskScore.level}`;
+                html += `
+                    <div class="result-section">
+                        <h2>Security Risk Assessment</h2>
+                        <div class="risk-score">
+                            <div class="risk-level ${riskClass}">
+                                ${data.riskScore.level.toUpperCase()} RISK
+                            </div>
+                            <p style="font-size: 1.2em; margin-bottom: 20px;">
+                                Score: ${data.riskScore.score}/100
+                            </p>
+                            ${data.riskScore.risks && data.riskScore.risks.length > 0 ? `
+                                <div class="risk-list">
+                                    ${data.riskScore.risks.map(risk => `
+                                        <div class="risk-item ${risk.severity}">
+                                            <span style="font-size: 1.2em;">⚠️</span>
+                                            <span>${risk.message}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            ` : '<p>No significant risks detected</p>'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // WHOIS Info
+            if (data.whois && !data.whois.error) {
+                html += `
+                    <div class="result-section">
+                        <h2>WHOIS Information</h2>
+                        <div class="info-grid">
+                            ${data.whois.registrar ? `
+                                <div class="info-item">
+                                    <div class="info-label">Registrar</div>
+                                    <div class="info-value">${data.whois.registrar}</div>
+                                </div>
+                            ` : ''}
+                            ${data.whois.creationDate ? `
+                                <div class="info-item">
+                                    <div class="info-label">Created</div>
+                                    <div class="info-value">${data.whois.creationDate}</div>
+                                </div>
+                            ` : ''}
+                            ${data.whois.expirationDate ? `
+                                <div class="info-item">
+                                    <div class="info-label">Expires</div>
+                                    <div class="info-value">${data.whois.expirationDate}</div>
+                                </div>
+                            ` : ''}
+                            ${data.whois.updatedDate ? `
+                                <div class="info-item">
+                                    <div class="info-label">Updated</div>
+                                    <div class="info-value">${data.whois.updatedDate}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${data.whois.status && data.whois.status.length > 0 ? `
+                            <div class="info-item" style="margin-top: 15px;">
+                                <div class="info-label">Status</div>
+                                <div class="tag-list">
+                                    ${data.whois.status.map(s => `<span class="tag">${s}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${data.whois.nameServers && data.whois.nameServers.length > 0 ? `
+                            <div class="info-item" style="margin-top: 15px;">
+                                <div class="info-label">Name Servers</div>
+                                <div class="tag-list">
+                                    ${data.whois.nameServers.map(ns => `<span class="tag">${ns}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // DNS Records
+            if (data.dns && !data.dns.error) {
+                html += `
+                    <div class="result-section">
+                        <h2>DNS Records</h2>
+                        <div class="info-grid">
+                            ${data.dns.A && data.dns.A.length > 0 ? `
+                                <div class="info-item">
+                                    <div class="info-label">A Records</div>
+                                    <div class="tag-list">
+                                        ${data.dns.A.map(ip => `<span class="tag">${ip}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${data.dns.AAAA && data.dns.AAAA.length > 0 ? `
+                                <div class="info-item">
+                                    <div class="info-label">AAAA Records (IPv6)</div>
+                                    <div class="tag-list">
+                                        ${data.dns.AAAA.map(ip => `<span class="tag">${ip}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${data.dns.MX && data.dns.MX.length > 0 ? `
+                                <div class="info-item">
+                                    <div class="info-label">MX Records</div>
+                                    <div class="tag-list">
+                                        ${data.dns.MX.map(mx => `<span class="tag">${mx.exchange} (${mx.priority})</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${data.dns.NS && data.dns.NS.length > 0 ? `
+                                <div class="info-item">
+                                    <div class="info-label">NS Records</div>
+                                    <div class="tag-list">
+                                        ${data.dns.NS.map(ns => `<span class="tag">${ns}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${data.dns.TXT && data.dns.TXT.length > 0 ? `
+                                <div class="info-item">
+                                    <div class="info-label">TXT Records</div>
+                                    <div class="info-value" style="font-size: 0.9em;">
+                                        ${data.dns.TXT.map(txt => `<div style="margin-bottom: 5px;">${txt}</div>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // IP Information
+            if (data.ip && !data.ip.error) {
+                html += `
+                    <div class="result-section">
+                        <h2>IP Geolocation</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">IP Address</div>
+                                <div class="info-value">${data.ip.ip}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Country</div>
+                                <div class="info-value">${data.ip.country} (${data.ip.countryCode})</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Region</div>
+                                <div class="info-value">${data.ip.region}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">City</div>
+                                <div class="info-value">${data.ip.city}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">ISP</div>
+                                <div class="info-value">${data.ip.isp}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Organization</div>
+                                <div class="info-value">${data.ip.org}</div>
+                            </div>
+                            ${data.ip.as ? `
+                                <div class="info-item">
+                                    <div class="info-label">AS Number</div>
+                                    <div class="info-value">${data.ip.as}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // SSL Certificate
+            if (data.ssl) {
+                html += `
+                    <div class="result-section">
+                        <h2>SSL Certificate</h2>
+                        ${data.ssl.hasSSL ? `
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">Status</div>
+                                    <div class="info-value">${data.ssl.isValid ? '✅ Valid' : '❌ Invalid'}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Issuer</div>
+                                    <div class="info-value">${data.ssl.issuer}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Subject</div>
+                                    <div class="info-value">${data.ssl.subject}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Valid From</div>
+                                    <div class="info-value">${data.ssl.validFrom}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Valid To</div>
+                                    <div class="info-value">${data.ssl.validTo}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Days Remaining</div>
+                                    <div class="info-value">${data.ssl.daysRemaining}</div>
+                                </div>
+                                ${data.ssl.protocol ? `
+                                    <div class="info-item">
+                                        <div class="info-label">Protocol</div>
+                                        <div class="info-value">${data.ssl.protocol}</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : `
+                            <div class="error">
+                                ❌ No SSL certificate detected or connection failed: ${data.ssl.error}
+                            </div>
+                        `}
+                    </div>
+                `;
+            }
+
+            // Technology Stack
+            if (data.tech && !data.tech.error) {
+                html += `
+                    <div class="result-section">
+                        <h2>Technology Stack</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Server</div>
+                                <div class="info-value">${data.tech.server}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Powered By</div>
+                                <div class="info-value">${data.tech.poweredBy}</div>
+                            </div>
+                            ${data.tech.cms ? `
+                                <div class="info-item">
+                                    <div class="info-label">CMS</div>
+                                    <div class="info-value">${data.tech.cms}</div>
+                                </div>
+                            ` : ''}
+                            ${data.tech.cdn ? `
+                                <div class="info-item">
+                                    <div class="info-label">CDN</div>
+                                    <div class="info-value">${data.tech.cdn}</div>
+                                </div>
+                            ` : ''}
+                            <div class="info-item">
+                                <div class="info-label">Cookies</div>
+                                <div class="info-value">${data.tech.cookies}</div>
+                            </div>
+                        </div>
+                        ${data.tech.framework && data.tech.framework.length > 0 ? `
+                            <div class="info-item" style="margin-top: 15px;">
+                                <div class="info-label">Frameworks</div>
+                                <div class="tag-list">
+                                    ${data.tech.framework.map(f => `<span class="tag">${f}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${data.tech.analytics && data.tech.analytics.length > 0 ? `
+                            <div class="info-item" style="margin-top: 15px;">
+                                <div class="info-label">Analytics</div>
+                                <div class="tag-list">
+                                    ${data.tech.analytics.map(a => `<span class="tag">${a}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            results.innerHTML = html;
+            results.classList.add('active');
+        }
+    </script>
+</body>
+</html>
