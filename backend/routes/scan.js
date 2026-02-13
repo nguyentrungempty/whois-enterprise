@@ -6,6 +6,7 @@ const ipService = require('../services/ipService');
 const sslService = require('../services/sslService');
 const techService = require('../services/techService');
 const riskEngine = require('../services/riskEngine');
+const getScreenshot = require('../services/screenshotService');
 const validator = require('../utils/validator');
 
 router.get('/scan', async (req, res) => {
