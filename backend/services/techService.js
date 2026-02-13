@@ -15,8 +15,8 @@ async function getTechStack(domain) {
     const html = response.data;
 
     const technologies = {
-      server: headers['server'] || 'Unknown',
-      poweredBy: headers['x-powered-by'] || 'Unknown',
+      server: headers['server'] || 'Không rõ',
+      poweredBy: headers['x-powered-by'] || 'Không rõ',
       framework: detectFramework(html),
       cms: detectCMS(html),
       analytics: detectAnalytics(html),
@@ -28,8 +28,8 @@ async function getTechStack(domain) {
   } catch (error) {
     return {
       error: error.message,
-      server: 'Unknown',
-      poweredBy: 'Unknown',
+      server: 'Không rõ',
+      poweredBy: 'Không rõ',
       framework: [],
       cms: null,
       analytics: [],
