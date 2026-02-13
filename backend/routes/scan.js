@@ -68,4 +68,12 @@ router.get('/whois-raw', async (req, res) => {
   }
 });
 
+router.get("/screenshot", async (req, res) => {
+  const { domain } = req.query;
+
+  const screenshot = await getScreenshot(domain);
+
+  res.json({ screenshot });
+});
+
 module.exports = router;
