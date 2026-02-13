@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WHOIS Enterprise Scanner</title>
+    <title>Công Cụ Quét WHOIS Enterprise</title>
     <style>
         * {
             margin: 0;
@@ -282,8 +282,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 WHOIS Enterprise Scanner</h1>
-            <p>Comprehensive Domain Intelligence & Security Analysis</p>
+            <h1>🔍 Công Cụ Quét WHOIS Enterprise</h1>
+            <p>Phân Tích Thông Tin Tên Miền & Bảo Mật Toàn Diện</p>
         </div>
 
         <div class="search-box">
@@ -292,16 +292,16 @@
                     type="text" 
                     class="search-input" 
                     id="domainInput" 
-                    placeholder="Enter domain (e.g., example.com)"
+                    placeholder="Nhập tên miền (ví dụ: example.com)"
                     required
                 >
-                <button type="submit" class="search-btn" id="searchBtn">Scan Domain</button>
+                <button type="submit" class="search-btn" id="searchBtn">Quét Tên Miền</button>
             </form>
         </div>
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Scanning domain... Please wait</p>
+            <p>Đang quét tên miền... Vui lòng đợi</p>
         </div>
 
         <div class="results" id="results"></div>
@@ -330,7 +330,7 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Scan failed');
+                    throw new Error(data.error || 'Quét thất bại');
                 }
 
                 displayResults(data, domain);
@@ -338,7 +338,7 @@
                 results.innerHTML = `
                     <div class="result-section">
                         <div class="error">
-                            <strong>Error:</strong> ${error.message}
+                            <strong>Lỗi:</strong> ${error.message}
                         </div>
                     </div>
                 `;
@@ -355,15 +355,21 @@
             // Risk Score
             if (data.riskScore) {
                 const riskClass = `risk-${data.riskScore.level}`;
+                const riskText = {
+                    'low': 'THẤP',
+                    'medium': 'TRUNG BÌNH',
+                    'high': 'CAO',
+                    'critical': 'NGHIÊM TRỌNG'
+                };
                 html += `
                     <div class="result-section">
-                        <h2>Security Risk Assessment</h2>
+                        <h2>Đánh Giá Rủi Ro Bảo Mật</h2>
                         <div class="risk-score">
                             <div class="risk-level ${riskClass}">
-                                ${data.riskScore.level.toUpperCase()} RISK
+                                RỦI RO ${riskText[data.riskScore.level]}
                             </div>
                             <p style="font-size: 1.2em; margin-bottom: 20px;">
-                                Score: ${data.riskScore.score}/100
+                                Điểm: ${data.riskScore.score}/100
                             </p>
                             ${data.riskScore.risks && data.riskScore.risks.length > 0 ? `
                                 <div class="risk-list">
@@ -374,7 +380,7 @@
                                         </div>
                                     `).join('')}
                                 </div>
-                            ` : '<p>No significant risks detected</p>'}
+                            ` : '<p>Không phát hiện rủi ro đáng kể</p>'}
                         </div>
                     </div>
                 `;
@@ -384,36 +390,36 @@
             if (data.whois && !data.whois.error) {
                 html += `
                     <div class="result-section">
-                        <h2>WHOIS Information</h2>
+                        <h2>Thông Tin WHOIS</h2>
                         <div class="info-grid">
                             ${data.whois.registrar ? `
                                 <div class="info-item">
-                                    <div class="info-label">Registrar</div>
+                                    <div class="info-label">Nhà Đăng Ký</div>
                                     <div class="info-value">${data.whois.registrar}</div>
                                 </div>
                             ` : ''}
                             ${data.whois.creationDate ? `
                                 <div class="info-item">
-                                    <div class="info-label">Created</div>
+                                    <div class="info-label">Ngày Tạo</div>
                                     <div class="info-value">${data.whois.creationDate}</div>
                                 </div>
                             ` : ''}
                             ${data.whois.expirationDate ? `
                                 <div class="info-item">
-                                    <div class="info-label">Expires</div>
+                                    <div class="info-label">Ngày Hết Hạn</div>
                                     <div class="info-value">${data.whois.expirationDate}</div>
                                 </div>
                             ` : ''}
                             ${data.whois.updatedDate ? `
                                 <div class="info-item">
-                                    <div class="info-label">Updated</div>
+                                    <div class="info-label">Ngày Cập Nhật</div>
                                     <div class="info-value">${data.whois.updatedDate}</div>
                                 </div>
                             ` : ''}
                         </div>
                         ${data.whois.status && data.whois.status.length > 0 ? `
                             <div class="info-item" style="margin-top: 15px;">
-                                <div class="info-label">Status</div>
+                                <div class="info-label">Trạng Thái</div>
                                 <div class="tag-list">
                                     ${data.whois.status.map(s => `<span class="tag">${s}</span>`).join('')}
                                 </div>
@@ -435,11 +441,11 @@
             if (data.dns && !data.dns.error) {
                 html += `
                     <div class="result-section">
-                        <h2>DNS Records</h2>
+                        <h2>Bản Ghi DNS</h2>
                         <div class="info-grid">
                             ${data.dns.A && data.dns.A.length > 0 ? `
                                 <div class="info-item">
-                                    <div class="info-label">A Records</div>
+                                    <div class="info-label">Bản Ghi A</div>
                                     <div class="tag-list">
                                         ${data.dns.A.map(ip => `<span class="tag">${ip}</span>`).join('')}
                                     </div>
@@ -447,7 +453,7 @@
                             ` : ''}
                             ${data.dns.AAAA && data.dns.AAAA.length > 0 ? `
                                 <div class="info-item">
-                                    <div class="info-label">AAAA Records (IPv6)</div>
+                                    <div class="info-label">Bản Ghi AAAA (IPv6)</div>
                                     <div class="tag-list">
                                         ${data.dns.AAAA.map(ip => `<span class="tag">${ip}</span>`).join('')}
                                     </div>
@@ -455,7 +461,7 @@
                             ` : ''}
                             ${data.dns.MX && data.dns.MX.length > 0 ? `
                                 <div class="info-item">
-                                    <div class="info-label">MX Records</div>
+                                    <div class="info-label">Bản Ghi MX</div>
                                     <div class="tag-list">
                                         ${data.dns.MX.map(mx => `<span class="tag">${mx.exchange} (${mx.priority})</span>`).join('')}
                                     </div>
@@ -463,7 +469,7 @@
                             ` : ''}
                             ${data.dns.NS && data.dns.NS.length > 0 ? `
                                 <div class="info-item">
-                                    <div class="info-label">NS Records</div>
+                                    <div class="info-label">Bản Ghi NS</div>
                                     <div class="tag-list">
                                         ${data.dns.NS.map(ns => `<span class="tag">${ns}</span>`).join('')}
                                     </div>
@@ -471,7 +477,7 @@
                             ` : ''}
                             ${data.dns.TXT && data.dns.TXT.length > 0 ? `
                                 <div class="info-item">
-                                    <div class="info-label">TXT Records</div>
+                                    <div class="info-label">Bản Ghi TXT</div>
                                     <div class="info-value" style="font-size: 0.9em;">
                                         ${data.dns.TXT.map(txt => `<div style="margin-bottom: 5px;">${txt}</div>`).join('')}
                                     </div>
@@ -486,35 +492,35 @@
             if (data.ip && !data.ip.error) {
                 html += `
                     <div class="result-section">
-                        <h2>IP Geolocation</h2>
+                        <h2>Định Vị IP</h2>
                         <div class="info-grid">
                             <div class="info-item">
-                                <div class="info-label">IP Address</div>
+                                <div class="info-label">Địa Chỉ IP</div>
                                 <div class="info-value">${data.ip.ip}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">Country</div>
+                                <div class="info-label">Quốc Gia</div>
                                 <div class="info-value">${data.ip.country} (${data.ip.countryCode})</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">Region</div>
+                                <div class="info-label">Vùng</div>
                                 <div class="info-value">${data.ip.region}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">City</div>
+                                <div class="info-label">Thành Phố</div>
                                 <div class="info-value">${data.ip.city}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">ISP</div>
+                                <div class="info-label">Nhà Cung Cấp</div>
                                 <div class="info-value">${data.ip.isp}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">Organization</div>
+                                <div class="info-label">Tổ Chức</div>
                                 <div class="info-value">${data.ip.org}</div>
                             </div>
                             ${data.ip.as ? `
                                 <div class="info-item">
-                                    <div class="info-label">AS Number</div>
+                                    <div class="info-label">Số AS</div>
                                     <div class="info-value">${data.ip.as}</div>
                                 </div>
                             ` : ''}
@@ -527,43 +533,43 @@
             if (data.ssl) {
                 html += `
                     <div class="result-section">
-                        <h2>SSL Certificate</h2>
+                        <h2>Chứng Chỉ SSL</h2>
                         ${data.ssl.hasSSL ? `
                             <div class="info-grid">
                                 <div class="info-item">
-                                    <div class="info-label">Status</div>
-                                    <div class="info-value">${data.ssl.isValid ? '✅ Valid' : '❌ Invalid'}</div>
+                                    <div class="info-label">Trạng Thái</div>
+                                    <div class="info-value">${data.ssl.isValid ? '✅ Hợp Lệ' : '❌ Không Hợp Lệ'}</div>
                                 </div>
                                 <div class="info-item">
-                                    <div class="info-label">Issuer</div>
+                                    <div class="info-label">Nhà Phát Hành</div>
                                     <div class="info-value">${data.ssl.issuer}</div>
                                 </div>
                                 <div class="info-item">
-                                    <div class="info-label">Subject</div>
+                                    <div class="info-label">Chủ Thể</div>
                                     <div class="info-value">${data.ssl.subject}</div>
                                 </div>
                                 <div class="info-item">
-                                    <div class="info-label">Valid From</div>
+                                    <div class="info-label">Có Hiệu Lực Từ</div>
                                     <div class="info-value">${data.ssl.validFrom}</div>
                                 </div>
                                 <div class="info-item">
-                                    <div class="info-label">Valid To</div>
+                                    <div class="info-label">Hết Hạn Vào</div>
                                     <div class="info-value">${data.ssl.validTo}</div>
                                 </div>
                                 <div class="info-item">
-                                    <div class="info-label">Days Remaining</div>
+                                    <div class="info-label">Số Ngày Còn Lại</div>
                                     <div class="info-value">${data.ssl.daysRemaining}</div>
                                 </div>
                                 ${data.ssl.protocol ? `
                                     <div class="info-item">
-                                        <div class="info-label">Protocol</div>
+                                        <div class="info-label">Giao Thức</div>
                                         <div class="info-value">${data.ssl.protocol}</div>
                                     </div>
                                 ` : ''}
                             </div>
                         ` : `
                             <div class="error">
-                                ❌ No SSL certificate detected or connection failed: ${data.ssl.error}
+                                ❌ Không phát hiện chứng chỉ SSL hoặc kết nối thất bại: ${data.ssl.error}
                             </div>
                         `}
                     </div>
@@ -574,10 +580,10 @@
             if (data.tech && !data.tech.error) {
                 html += `
                     <div class="result-section">
-                        <h2>Technology Stack</h2>
+                        <h2>Công Nghệ Sử Dụng</h2>
                         <div class="info-grid">
                             <div class="info-item">
-                                <div class="info-label">Server</div>
+                                <div class="info-label">Máy Chủ</div>
                                 <div class="info-value">${data.tech.server}</div>
                             </div>
                             <div class="info-item">
@@ -586,7 +592,7 @@
                             </div>
                             ${data.tech.cms ? `
                                 <div class="info-item">
-                                    <div class="info-label">CMS</div>
+                                    <div class="info-label">Hệ Quản Trị</div>
                                     <div class="info-value">${data.tech.cms}</div>
                                 </div>
                             ` : ''}
@@ -611,7 +617,7 @@
                         ` : ''}
                         ${data.tech.analytics && data.tech.analytics.length > 0 ? `
                             <div class="info-item" style="margin-top: 15px;">
-                                <div class="info-label">Analytics</div>
+                                <div class="info-label">Công Cụ Phân Tích</div>
                                 <div class="tag-list">
                                     ${data.tech.analytics.map(a => `<span class="tag">${a}</span>`).join('')}
                                 </div>
