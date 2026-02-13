@@ -461,6 +461,23 @@
             element.style.display = element.style.display === 'none' ? 'block' : 'none';
         }
 
+        async function loadWebsitePreview(domain) {
+          const res = await fetch(`/api/screenshot?domain=${domain}`);
+          const data = await res.json();
+        
+          const container = document.getElementById("website-preview");
+        
+          if (!data.screenshot) {
+            container.innerHTML = "<p>Không lấy được ảnh preview</p>";
+            return;
+          }
+        
+          container.innerHTML = `
+            <h3>Website Preview</h3>
+            <img src="${data.screenshot}" 
+                 style="width:100%;border-radius:12px;margin-top:10px;box-shadow:0 10px 30px rgba(0,0,0,0.4);">
+          `;
+
         function displayResults(data, domain) {
             let html = '';
 
@@ -483,6 +500,7 @@
                             <p style="font-size: 1.2em; margin-bottom: 20px;">
                                 Điểm: ${data.riskScore.score}/100
                             </p>
+                            <div id="website-preview"></div>
                             ${data.riskScore.risks && data.riskScore.risks.length > 0 ? `
                                 <div class="risk-list">
                                     ${data.riskScore.risks.map(risk => `
