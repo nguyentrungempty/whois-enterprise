@@ -45,7 +45,7 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
+            margin-bottom: 15px;
         }
 
         .search-form {
@@ -62,12 +62,12 @@
             transition: border-color 0.3s;
         }
 
-        .search-input:focus {
+        .search-input:focus, .tabs button:focus {
             outline: none;
             border-color: #667eea;
         }
 
-        .search-btn {
+        .search-btn, .tabs button {
             padding: 15px 40px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -79,7 +79,7 @@
             transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .search-btn:hover {
+        .search-btn:hover, .tabs button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
         }
@@ -97,8 +97,14 @@
             font-size: 1.2em;
             display: none;
         }
+        
+        .tabs {
+            color: white;
+            font-size: 1.2em;
+            display: none;
+        }
 
-        .loading.active {
+        .loading.active, .tabs.active {
             display: block;
         }
 
@@ -325,6 +331,19 @@
             color: #333;
             font-weight: 500;
         }
+        
+        .tabs button {
+            border: 2px solid #334155
+        }
+    
+        .tab {
+            display: none;
+            margin-top: 15px
+        }
+        
+        .tab.active {
+            display: block
+        }
 
         @media (max-width: 768px) {
             .header h1 {
@@ -364,6 +383,15 @@
         <div class="loading" id="loading">
             <div class="spinner"></div>
             <p>Đang quét tên miền... Vui lòng đợi</p>
+        </div>
+
+        <div class="tabs" id="tabs">
+            <button onclick="show('score')">Rủi Ro Bảo Mật</button>
+            <button onclick="show('whois')">WHOIS</button>
+            <button onclick="show('dns')">DNS</button>
+            <button onclick="show('ip')">IP / Network</button>
+            <button onclick="show('ssl')">SSL</button>
+            <button onclick="show('tech')">Công nghệ sử dụng</button>
         </div>
 
         <div class="results" id="results"></div>
@@ -408,8 +436,14 @@
             } finally {
                 loading.classList.remove('active');
                 searchBtn.disabled = false;
+                tabs.classList.add('active');
             }
         });
+        
+        function show(t) {
+            document.querySelectorAll(".tab").forEach(e => e.classList.remove("active"));
+            document.getElementById(t).classList.add("active");
+        }
 
         function hasData(obj) {
             if (!obj || obj.error) return false;
@@ -440,7 +474,7 @@
                     'critical': 'NGHIÊM TRỌNG'
                 };
                 html += `
-                    <div class="result-section">
+                    <div id="score" class="tab result-section active">
                         <h2>Đánh Giá Rủi Ro Bảo Mật</h2>
                         <div class="risk-score">
                             <div class="risk-level ${riskClass}">
@@ -466,7 +500,7 @@
 
             // WHOIS Info
             if (data.whois) {
-                html += `<div class="result-section"><h2>Thông Tin WHOIS</h2>`;
+                html += `<div id="whois" class="tab result-section"><h2>Thông Tin WHOIS</h2>`;
                 
                 if (data.whois.error) {
                     html += `<div class="error">❌ ${data.whois.error}</div>`;
@@ -585,7 +619,7 @@
 
             // DNS Records
             if (data.dns) {
-                html += `<div class="result-section"><h2>Bản Ghi DNS</h2>`;
+                html += `<div id="dns" class="tab result-section"><h2>Bản Ghi DNS</h2>`;
                 
                 if (data.dns.error) {
                     html += `<div class="error">❌ ${data.dns.error}</div>`;
@@ -737,7 +771,7 @@
 
             // IP Information
             if (data.ip) {
-                html += `<div class="result-section"><h2>Định Vị IP</h2>`;
+                html += `<div id="ip" class="tab result-section"><h2>Định Vị IP</h2>`;
                 
                 if (data.ip.error) {
                     html += `<div class="error">❌ ${data.ip.error}</div>`;
@@ -782,7 +816,7 @@
 
             // SSL Certificate
             if (data.ssl) {
-                html += `<div class="result-section"><h2>Chứng Chỉ SSL</h2>`;
+                html += `<div id="ssl" class="tab result-section"><h2>Chứng Chỉ SSL</h2>`;
                 
                 if (data.ssl.hasSSL) {
                     html += `
@@ -827,7 +861,7 @@
 
             // Technology Stack
             if (data.tech) {
-                html += `<div class="result-section"><h2>Công Nghệ Sử Dụng</h2>`;
+                html += `<div id="tech" class="tab result-section"><h2>Công Nghệ Sử Dụng</h2>`;
                 
                 if (data.tech.error) {
                     html += `<div class="error">❌ ${data.tech.error}</div>`;
