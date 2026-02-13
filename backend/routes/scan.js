@@ -44,4 +44,28 @@ router.get('/scan', async (req, res) => {
   }
 });
 
+router.get('/whois-raw', async (req, res) => {
+  try {
+    const { domain } = req.query;
+
+    if (!domain) {
+      return res.status(400).json({ error: 'Domain parameter is required' });
+    }
+
+    if (!validator.isValidDomain(domain)) {
+      return res.status(400).json({ error: 'Invalid domain format' });
+    }
+
+    const whoisData = await whoisService.getWhoisInfo(domain);
+    
+    res.json({
+      domain: domain,
+      raw: whoisData.raw,
+      parsed: whoisData
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

@@ -271,6 +271,61 @@
             font-style: italic;
         }
 
+        .raw-data {
+            margin-top: 15px;
+            padding: 15px;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .toggle-raw {
+            margin-top: 10px;
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .toggle-raw:hover {
+            background: #5568d3;
+        }
+
+        .soa-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .soa-item {
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+
+        .soa-label {
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 3px;
+        }
+
+        .soa-value {
+            font-size: 0.95em;
+            color: #333;
+            font-weight: 500;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8em;
@@ -358,11 +413,18 @@
 
         function hasData(obj) {
             if (!obj || obj.error) return false;
-            return Object.values(obj).some(val => {
+            const keys = Object.keys(obj).filter(k => k !== 'raw' && k !== 'error');
+            return keys.some(key => {
+                const val = obj[key];
                 if (Array.isArray(val)) return val.length > 0;
                 if (val && typeof val === 'object') return Object.keys(val).length > 0;
-                return val !== null && val !== undefined && val !== '';
+                return val !== null && val !== undefined && val !== '' && val !== 'Unknown';
             });
+        }
+
+        function toggleRawData(id) {
+            const element = document.getElementById(id);
+            element.style.display = element.style.display === 'none' ? 'block' : 'none';
         }
 
         function displayResults(data, domain) {
@@ -409,7 +471,16 @@
                 if (data.whois.error) {
                     html += `<div class="error">❌ ${data.whois.error}</div>`;
                 } else if (!hasData(data.whois)) {
-                    html += `<div class="empty-state">Không có dữ liệu WHOIS</div>`;
+                    html += `<div class="empty-state">⚠️ Không có dữ liệu WHOIS được parse</div>`;
+                    
+                    if (data.whois.raw) {
+                        html += `
+                            <button class="toggle-raw" onclick="toggleRawData('rawWhois')">
+                                🔍 Xem Dữ Liệu WHOIS Gốc
+                            </button>
+                            <div id="rawWhois" class="raw-data" style="display: none;">${data.whois.raw}</div>
+                        `;
+                    }
                 } else {
                     html += `<div class="info-grid">`;
                     
@@ -498,6 +569,15 @@
                                 </div>
                             </div>`;
                     }
+                    
+                    if (data.whois.raw) {
+                        html += `
+                            <button class="toggle-raw" onclick="toggleRawData('rawWhois')">
+                                🔍 Xem Dữ Liệu WHOIS Gốc
+                            </button>
+                            <div id="rawWhois" class="raw-data" style="display: none;">${data.whois.raw}</div>
+                        `;
+                    }
                 }
                 
                 html += `</div>`;
@@ -517,7 +597,7 @@
                     if (data.dns.A && data.dns.A.length > 0) {
                         html += `
                             <div class="info-item">
-                                <div class="info-label">Bản Ghi A</div>
+                                <div class="info-label">Bản Ghi A (IPv4)</div>
                                 <div class="tag-list">
                                     ${data.dns.A.map(ip => `<span class="tag">${ip}</span>`).join('')}
                                 </div>
@@ -534,10 +614,20 @@
                             </div>`;
                     }
                     
+                    if (data.dns.CNAME && data.dns.CNAME.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi CNAME</div>
+                                <div class="tag-list">
+                                    ${data.dns.CNAME.map(cname => `<span class="tag">${cname}</span>`).join('')}
+                                </div>
+                            </div>`;
+                    }
+                    
                     if (data.dns.MX && data.dns.MX.length > 0) {
                         html += `
                             <div class="info-item">
-                                <div class="info-label">Bản Ghi MX</div>
+                                <div class="info-label">Bản Ghi MX (Mail)</div>
                                 <div class="tag-list">
                                     ${data.dns.MX.map(mx => `<span class="tag">${mx.exchange} (${mx.priority})</span>`).join('')}
                                 </div>
@@ -547,10 +637,46 @@
                     if (data.dns.NS && data.dns.NS.length > 0) {
                         html += `
                             <div class="info-item">
-                                <div class="info-label">Bản Ghi NS</div>
+                                <div class="info-label">Bản Ghi NS (Name Server)</div>
                                 <div class="tag-list">
                                     ${data.dns.NS.map(ns => `<span class="tag">${ns}</span>`).join('')}
                                 </div>
+                            </div>`;
+                    }
+                    
+                    if (data.dns.PTR && data.dns.PTR.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi PTR (Reverse DNS)</div>
+                                ${data.dns.PTR.map(ptr => `
+                                    <div style="margin: 5px 0;">
+                                        <strong>${ptr.ip}</strong> → ${ptr.hostnames.join(', ')}
+                                    </div>
+                                `).join('')}
+                            </div>`;
+                    }
+                    
+                    if (data.dns.SRV && data.dns.SRV.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi SRV (Service)</div>
+                                ${data.dns.SRV.map(srv => `
+                                    <div style="margin: 5px 0; font-size: 0.9em;">
+                                        ${srv.name}:${srv.port} (Priority: ${srv.priority}, Weight: ${srv.weight})
+                                    </div>
+                                `).join('')}
+                            </div>`;
+                    }
+                    
+                    if (data.dns.CAA && data.dns.CAA.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi CAA (Certificate Authority)</div>
+                                ${data.dns.CAA.map(caa => `
+                                    <div style="margin: 5px 0; font-size: 0.9em;">
+                                        ${caa.issue || caa.issuewild || caa.iodef || 'N/A'}
+                                    </div>
+                                `).join('')}
                             </div>`;
                     }
                     
@@ -565,6 +691,45 @@
                     }
                     
                     html += `</div>`;
+                    
+                    // SOA Record (special display)
+                    if (data.dns.SOA) {
+                        const soa = data.dns.SOA;
+                        html += `
+                            <div class="info-item" style="margin-top: 15px;">
+                                <div class="info-label">Bản Ghi SOA (Start of Authority)</div>
+                                <div class="soa-grid">
+                                    <div class="soa-item">
+                                        <div class="soa-label">Primary NS</div>
+                                        <div class="soa-value">${soa.nsname}</div>
+                                    </div>
+                                    <div class="soa-item">
+                                        <div class="soa-label">Admin Email</div>
+                                        <div class="soa-value">${soa.hostmaster}</div>
+                                    </div>
+                                    <div class="soa-item">
+                                        <div class="soa-label">Serial</div>
+                                        <div class="soa-value">${soa.serial}</div>
+                                    </div>
+                                    <div class="soa-item">
+                                        <div class="soa-label">Refresh</div>
+                                        <div class="soa-value">${soa.refresh}s</div>
+                                    </div>
+                                    <div class="soa-item">
+                                        <div class="soa-label">Retry</div>
+                                        <div class="soa-value">${soa.retry}s</div>
+                                    </div>
+                                    <div class="soa-item">
+                                        <div class="soa-label">Expire</div>
+                                        <div class="soa-value">${soa.expire}s</div>
+                                    </div>
+                                    <div class="soa-item">
+                                        <div class="soa-label">Min TTL</div>
+                                        <div class="soa-value">${soa.minttl}s</div>
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
                 }
                 
                 html += `</div>`;
