@@ -5,13 +5,13 @@ function calculateRiskScore(data) {
 
   if (data.ssl?.hasSSL === false) {
     score += 30;
-    risks.push({ severity: 'high', message: 'No SSL certificate detected' });
+    risks.push({ severity: 'high', message: 'Không phát hiện thấy chứng chỉ SSL' });
   } else if (data.ssl?.isValid === false) {
     score += 25;
-    risks.push({ severity: 'high', message: 'SSL certificate is invalid or expired' });
+    risks.push({ severity: 'high', message: 'Chứng chỉ SSL không hợp lệ hoặc đã hết hạn' });
   } else if (data.ssl?.daysRemaining < 30) {
     score += 15;
-    risks.push({ severity: 'medium', message: `SSL certificate expires in ${data.ssl.daysRemaining} days` });
+    risks.push({ severity: 'medium', message: `Chứng chỉ SSL hết hạn vào ${data.ssl.daysRemaining} ngày` });
   }
 
   if (data.whois?.expirationDate) {
@@ -22,10 +22,10 @@ function calculateRiskScore(data) {
       
       if (daysUntilExpiry < 30) {
         score += 20;
-        risks.push({ severity: 'high', message: `Domain expires in ${daysUntilExpiry} days` });
+        risks.push({ severity: 'high', message: `Tên miền hết hạn sau ${daysUntilExpiry} ngày` });
       } else if (daysUntilExpiry < 90) {
         score += 10;
-        risks.push({ severity: 'medium', message: `Domain expires in ${daysUntilExpiry} days` });
+        risks.push({ severity: 'medium', message: `Tên miền hết hạn sau ${daysUntilExpiry} ngày` });
       }
     } catch (e) {
       // Invalid date format
@@ -34,29 +34,29 @@ function calculateRiskScore(data) {
 
   if (!data.dns?.MX || data.dns.MX.length === 0) {
     score += 10;
-    risks.push({ severity: 'low', message: 'No MX records configured' });
+    risks.push({ severity: 'low', message: 'Không tìm thấy bản ghi MX nào' });
   }
 
   if (!data.dns?.A || data.dns.A.length === 0) {
     score += 15;
-    risks.push({ severity: 'medium', message: 'No A records found' });
+    risks.push({ severity: 'medium', message: 'Bản ghi A không tìm thấy' });
   }
 
   if (data.tech?.server === 'Unknown') {
     score += 5;
-    risks.push({ severity: 'low', message: 'Server information hidden' });
+    risks.push({ severity: 'low', message: 'Thông tin máy chủ được ẩn' });
   }
 
   const spfRecord = data.dns?.TXT?.find(txt => txt.toLowerCase().includes('v=spf1'));
   if (!spfRecord) {
     score += 10;
-    risks.push({ severity: 'medium', message: 'No SPF record detected' });
+    risks.push({ severity: 'medium', message: 'Không tìm thấy bản ghi SPF nào' });
   }
 
   const dmarcRecord = data.dns?.TXT?.find(txt => txt.toLowerCase().includes('v=dmarc1'));
   if (!dmarcRecord) {
     score += 10;
-    risks.push({ severity: 'medium', message: 'No DMARC record detected' });
+    risks.push({ severity: 'medium', message: 'Không tìm thấy bản ghi DMARC nào' });
   }
 
   score = Math.min(score, maxScore);
