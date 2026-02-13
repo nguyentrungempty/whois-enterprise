@@ -264,6 +264,13 @@
             border-left: 4px solid #dc3545;
         }
 
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-style: italic;
+        }
+
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8em;
@@ -349,6 +356,15 @@
             }
         });
 
+        function hasData(obj) {
+            if (!obj || obj.error) return false;
+            return Object.values(obj).some(val => {
+                if (Array.isArray(val)) return val.length > 0;
+                if (val && typeof val === 'object') return Object.keys(val).length > 0;
+                return val !== null && val !== undefined && val !== '';
+            });
+        }
+
         function displayResults(data, domain) {
             let html = '';
 
@@ -387,112 +403,181 @@
             }
 
             // WHOIS Info
-            if (data.whois && !data.whois.error) {
-                html += `
-                    <div class="result-section">
-                        <h2>Thông Tin WHOIS</h2>
-                        <div class="info-grid">
-                            ${data.whois.registrar ? `
-                                <div class="info-item">
-                                    <div class="info-label">Nhà Đăng Ký</div>
-                                    <div class="info-value">${data.whois.registrar}</div>
-                                </div>
-                            ` : ''}
-                            ${data.whois.creationDate ? `
-                                <div class="info-item">
-                                    <div class="info-label">Ngày Tạo</div>
-                                    <div class="info-value">${data.whois.creationDate}</div>
-                                </div>
-                            ` : ''}
-                            ${data.whois.expirationDate ? `
-                                <div class="info-item">
-                                    <div class="info-label">Ngày Hết Hạn</div>
-                                    <div class="info-value">${data.whois.expirationDate}</div>
-                                </div>
-                            ` : ''}
-                            ${data.whois.updatedDate ? `
-                                <div class="info-item">
-                                    <div class="info-label">Ngày Cập Nhật</div>
-                                    <div class="info-value">${data.whois.updatedDate}</div>
-                                </div>
-                            ` : ''}
-                        </div>
-                        ${data.whois.status && data.whois.status.length > 0 ? `
+            if (data.whois) {
+                html += `<div class="result-section"><h2>Thông Tin WHOIS</h2>`;
+                
+                if (data.whois.error) {
+                    html += `<div class="error">❌ ${data.whois.error}</div>`;
+                } else if (!hasData(data.whois)) {
+                    html += `<div class="empty-state">Không có dữ liệu WHOIS</div>`;
+                } else {
+                    html += `<div class="info-grid">`;
+                    
+                    if (data.whois.registrar) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Nhà Đăng Ký</div>
+                                <div class="info-value">${data.whois.registrar}</div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.registrarUrl) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">URL Nhà Đăng Ký</div>
+                                <div class="info-value"><a href="${data.whois.registrarUrl}" target="_blank">${data.whois.registrarUrl}</a></div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.creationDate) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Ngày Tạo</div>
+                                <div class="info-value">${data.whois.creationDate}</div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.expirationDate) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Ngày Hết Hạn</div>
+                                <div class="info-value">${data.whois.expirationDate}</div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.updatedDate) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Ngày Cập Nhật</div>
+                                <div class="info-value">${data.whois.updatedDate}</div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.registrantOrg) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Tổ Chức Đăng Ký</div>
+                                <div class="info-value">${data.whois.registrantOrg}</div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.registrantCountry) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Quốc Gia</div>
+                                <div class="info-value">${data.whois.registrantCountry}</div>
+                            </div>`;
+                    }
+                    
+                    if (data.whois.dnssec) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">DNSSEC</div>
+                                <div class="info-value">${data.whois.dnssec}</div>
+                            </div>`;
+                    }
+                    
+                    html += `</div>`;
+                    
+                    if (data.whois.status && data.whois.status.length > 0) {
+                        html += `
                             <div class="info-item" style="margin-top: 15px;">
                                 <div class="info-label">Trạng Thái</div>
                                 <div class="tag-list">
                                     ${data.whois.status.map(s => `<span class="tag">${s}</span>`).join('')}
                                 </div>
-                            </div>
-                        ` : ''}
-                        ${data.whois.nameServers && data.whois.nameServers.length > 0 ? `
+                            </div>`;
+                    }
+                    
+                    if (data.whois.nameServers && data.whois.nameServers.length > 0) {
+                        html += `
                             <div class="info-item" style="margin-top: 15px;">
                                 <div class="info-label">Name Servers</div>
                                 <div class="tag-list">
                                     ${data.whois.nameServers.map(ns => `<span class="tag">${ns}</span>`).join('')}
                                 </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
+                            </div>`;
+                    }
+                }
+                
+                html += `</div>`;
             }
 
             // DNS Records
-            if (data.dns && !data.dns.error) {
-                html += `
-                    <div class="result-section">
-                        <h2>Bản Ghi DNS</h2>
-                        <div class="info-grid">
-                            ${data.dns.A && data.dns.A.length > 0 ? `
-                                <div class="info-item">
-                                    <div class="info-label">Bản Ghi A</div>
-                                    <div class="tag-list">
-                                        ${data.dns.A.map(ip => `<span class="tag">${ip}</span>`).join('')}
-                                    </div>
+            if (data.dns) {
+                html += `<div class="result-section"><h2>Bản Ghi DNS</h2>`;
+                
+                if (data.dns.error) {
+                    html += `<div class="error">❌ ${data.dns.error}</div>`;
+                } else if (!hasData(data.dns)) {
+                    html += `<div class="empty-state">Không có bản ghi DNS</div>`;
+                } else {
+                    html += `<div class="info-grid">`;
+                    
+                    if (data.dns.A && data.dns.A.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi A</div>
+                                <div class="tag-list">
+                                    ${data.dns.A.map(ip => `<span class="tag">${ip}</span>`).join('')}
                                 </div>
-                            ` : ''}
-                            ${data.dns.AAAA && data.dns.AAAA.length > 0 ? `
-                                <div class="info-item">
-                                    <div class="info-label">Bản Ghi AAAA (IPv6)</div>
-                                    <div class="tag-list">
-                                        ${data.dns.AAAA.map(ip => `<span class="tag">${ip}</span>`).join('')}
-                                    </div>
+                            </div>`;
+                    }
+                    
+                    if (data.dns.AAAA && data.dns.AAAA.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi AAAA (IPv6)</div>
+                                <div class="tag-list">
+                                    ${data.dns.AAAA.map(ip => `<span class="tag">${ip}</span>`).join('')}
                                 </div>
-                            ` : ''}
-                            ${data.dns.MX && data.dns.MX.length > 0 ? `
-                                <div class="info-item">
-                                    <div class="info-label">Bản Ghi MX</div>
-                                    <div class="tag-list">
-                                        ${data.dns.MX.map(mx => `<span class="tag">${mx.exchange} (${mx.priority})</span>`).join('')}
-                                    </div>
+                            </div>`;
+                    }
+                    
+                    if (data.dns.MX && data.dns.MX.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi MX</div>
+                                <div class="tag-list">
+                                    ${data.dns.MX.map(mx => `<span class="tag">${mx.exchange} (${mx.priority})</span>`).join('')}
                                 </div>
-                            ` : ''}
-                            ${data.dns.NS && data.dns.NS.length > 0 ? `
-                                <div class="info-item">
-                                    <div class="info-label">Bản Ghi NS</div>
-                                    <div class="tag-list">
-                                        ${data.dns.NS.map(ns => `<span class="tag">${ns}</span>`).join('')}
-                                    </div>
+                            </div>`;
+                    }
+                    
+                    if (data.dns.NS && data.dns.NS.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi NS</div>
+                                <div class="tag-list">
+                                    ${data.dns.NS.map(ns => `<span class="tag">${ns}</span>`).join('')}
                                 </div>
-                            ` : ''}
-                            ${data.dns.TXT && data.dns.TXT.length > 0 ? `
-                                <div class="info-item">
-                                    <div class="info-label">Bản Ghi TXT</div>
-                                    <div class="info-value" style="font-size: 0.9em;">
-                                        ${data.dns.TXT.map(txt => `<div style="margin-bottom: 5px;">${txt}</div>`).join('')}
-                                    </div>
+                            </div>`;
+                    }
+                    
+                    if (data.dns.TXT && data.dns.TXT.length > 0) {
+                        html += `
+                            <div class="info-item">
+                                <div class="info-label">Bản Ghi TXT</div>
+                                <div class="info-value" style="font-size: 0.9em;">
+                                    ${data.dns.TXT.map(txt => `<div style="margin-bottom: 5px; word-break: break-all;">${txt}</div>`).join('')}
                                 </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `;
+                            </div>`;
+                    }
+                    
+                    html += `</div>`;
+                }
+                
+                html += `</div>`;
             }
 
             // IP Information
-            if (data.ip && !data.ip.error) {
-                html += `
-                    <div class="result-section">
-                        <h2>Định Vị IP</h2>
+            if (data.ip) {
+                html += `<div class="result-section"><h2>Định Vị IP</h2>`;
+                
+                if (data.ip.error) {
+                    html += `<div class="error">❌ ${data.ip.error}</div>`;
+                } else {
+                    html += `
                         <div class="info-grid">
                             <div class="info-item">
                                 <div class="info-label">Địa Chỉ IP</div>
@@ -524,63 +609,65 @@
                                     <div class="info-value">${data.ip.as}</div>
                                 </div>
                             ` : ''}
-                        </div>
-                    </div>
-                `;
+                        </div>`;
+                }
+                
+                html += `</div>`;
             }
 
             // SSL Certificate
             if (data.ssl) {
-                html += `
-                    <div class="result-section">
-                        <h2>Chứng Chỉ SSL</h2>
-                        ${data.ssl.hasSSL ? `
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="info-label">Trạng Thái</div>
-                                    <div class="info-value">${data.ssl.isValid ? '✅ Hợp Lệ' : '❌ Không Hợp Lệ'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Nhà Phát Hành</div>
-                                    <div class="info-value">${data.ssl.issuer}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Chủ Thể</div>
-                                    <div class="info-value">${data.ssl.subject}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Có Hiệu Lực Từ</div>
-                                    <div class="info-value">${data.ssl.validFrom}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Hết Hạn Vào</div>
-                                    <div class="info-value">${data.ssl.validTo}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="info-label">Số Ngày Còn Lại</div>
-                                    <div class="info-value">${data.ssl.daysRemaining}</div>
-                                </div>
-                                ${data.ssl.protocol ? `
-                                    <div class="info-item">
-                                        <div class="info-label">Giao Thức</div>
-                                        <div class="info-value">${data.ssl.protocol}</div>
-                                    </div>
-                                ` : ''}
+                html += `<div class="result-section"><h2>Chứng Chỉ SSL</h2>`;
+                
+                if (data.ssl.hasSSL) {
+                    html += `
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Trạng Thái</div>
+                                <div class="info-value">${data.ssl.isValid ? '✅ Hợp Lệ' : '❌ Không Hợp Lệ'}</div>
                             </div>
-                        ` : `
-                            <div class="error">
-                                ❌ Không phát hiện chứng chỉ SSL hoặc kết nối thất bại: ${data.ssl.error}
+                            <div class="info-item">
+                                <div class="info-label">Nhà Phát Hành</div>
+                                <div class="info-value">${data.ssl.issuer}</div>
                             </div>
-                        `}
-                    </div>
-                `;
+                            <div class="info-item">
+                                <div class="info-label">Chủ Thể</div>
+                                <div class="info-value">${data.ssl.subject}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Có Hiệu Lực Từ</div>
+                                <div class="info-value">${data.ssl.validFrom}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Hết Hạn Vào</div>
+                                <div class="info-value">${data.ssl.validTo}</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Số Ngày Còn Lại</div>
+                                <div class="info-value">${data.ssl.daysRemaining}</div>
+                            </div>
+                            ${data.ssl.protocol ? `
+                                <div class="info-item">
+                                    <div class="info-label">Giao Thức</div>
+                                    <div class="info-value">${data.ssl.protocol}</div>
+                                </div>
+                            ` : ''}
+                        </div>`;
+                } else {
+                    html += `<div class="error">❌ Không phát hiện chứng chỉ SSL hoặc kết nối thất bại: ${data.ssl.error}</div>`;
+                }
+                
+                html += `</div>`;
             }
 
             // Technology Stack
-            if (data.tech && !data.tech.error) {
-                html += `
-                    <div class="result-section">
-                        <h2>Công Nghệ Sử Dụng</h2>
+            if (data.tech) {
+                html += `<div class="result-section"><h2>Công Nghệ Sử Dụng</h2>`;
+                
+                if (data.tech.error) {
+                    html += `<div class="error">❌ ${data.tech.error}</div>`;
+                } else {
+                    html += `
                         <div class="info-grid">
                             <div class="info-item">
                                 <div class="info-label">Máy Chủ</div>
@@ -606,25 +693,30 @@
                                 <div class="info-label">Cookies</div>
                                 <div class="info-value">${data.tech.cookies}</div>
                             </div>
-                        </div>
-                        ${data.tech.framework && data.tech.framework.length > 0 ? `
+                        </div>`;
+                    
+                    if (data.tech.framework && data.tech.framework.length > 0) {
+                        html += `
                             <div class="info-item" style="margin-top: 15px;">
                                 <div class="info-label">Frameworks</div>
                                 <div class="tag-list">
                                     ${data.tech.framework.map(f => `<span class="tag">${f}</span>`).join('')}
                                 </div>
-                            </div>
-                        ` : ''}
-                        ${data.tech.analytics && data.tech.analytics.length > 0 ? `
+                            </div>`;
+                    }
+                    
+                    if (data.tech.analytics && data.tech.analytics.length > 0) {
+                        html += `
                             <div class="info-item" style="margin-top: 15px;">
                                 <div class="info-label">Công Cụ Phân Tích</div>
                                 <div class="tag-list">
                                     ${data.tech.analytics.map(a => `<span class="tag">${a}</span>`).join('')}
                                 </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
+                            </div>`;
+                    }
+                }
+                
+                html += `</div>`;
             }
 
             results.innerHTML = html;

@@ -19,41 +19,104 @@ function parseWhoisData(data) {
   const result = {
     raw: data,
     registrar: null,
+    registrarUrl: null,
     creationDate: null,
     expirationDate: null,
     updatedDate: null,
     status: [],
-    nameServers: []
+    nameServers: [],
+    dnssec: null,
+    registrantOrg: null,
+    registrantCountry: null,
+    adminEmail: null,
+    techEmail: null
   };
 
   lines.forEach(line => {
     const lower = line.toLowerCase();
+    const trimmedLine = line.trim();
     
-    if (lower.includes('registrar:')) {
-      result.registrar = line.split(':')[1]?.trim();
+    // Skip empty lines and comments
+    if (!trimmedLine || trimmedLine.startsWith('%') || trimmedLine.startsWith('#')) {
+      return;
     }
-    if (lower.includes('creation date:') || lower.includes('created:')) {
+    
+    // Registrar
+    if ((lower.includes('registrar:') || lower.includes('sponsoring registrar:')) && !result.registrar) {
+      result.registrar = line.split(':').slice(1).join(':').trim();
+    }
+    
+    // Registrar URL
+    if (lower.includes('registrar url:') && !result.registrarUrl) {
+      result.registrarUrl = line.split(':').slice(1).join(':').trim();
+    }
+    
+    // Creation Date
+    if ((lower.includes('creation date:') || lower.includes('created:') || lower.includes('created on:') || lower.includes('registered on:')) && !result.creationDate) {
       result.creationDate = line.split(':').slice(1).join(':').trim();
     }
-    if (lower.includes('expir') && lower.includes('date:')) {
-      result.expirationDate = line.split(':').slice(1).join(':').trim();
+    
+    // Expiration Date
+    if ((lower.includes('expir') && lower.includes('date:')) || lower.includes('registry expiry date:') || lower.includes('paid-till:')) {
+      if (!result.expirationDate) {
+        result.expirationDate = line.split(':').slice(1).join(':').trim();
+      }
     }
-    if (lower.includes('updated date:') || lower.includes('last updated:')) {
+    
+    // Updated Date
+    if ((lower.includes('updated date:') || lower.includes('last updated:') || lower.includes('modified:') || lower.includes('changed:')) && !result.updatedDate) {
       result.updatedDate = line.split(':').slice(1).join(':').trim();
     }
-    if (lower.includes('domain status:') || lower.includes('status:')) {
+    
+    // Status
+    if (lower.includes('domain status:') || (lower.includes('status:') && !lower.includes('dnssec'))) {
       const status = line.split(':').slice(1).join(':').trim();
-      if (status && !result.status.includes(status)) {
+      if (status && !result.status.includes(status) && status.length < 100) {
         result.status.push(status);
       }
     }
-    if (lower.includes('name server:')) {
-      const ns = line.split(':')[1]?.trim();
-      if (ns && !result.nameServers.includes(ns)) {
+    
+    // Name Servers
+    if (lower.includes('name server:') || lower.includes('nserver:') || lower.includes('nameserver:')) {
+      const ns = line.split(':').slice(1).join(':').trim().split(/\s+/)[0]; // Get first part (domain only)
+      if (ns && !result.nameServers.includes(ns) && ns.includes('.')) {
         result.nameServers.push(ns);
       }
     }
+    
+    // DNSSEC
+    if (lower.includes('dnssec:') && !result.dnssec) {
+      result.dnssec = line.split(':').slice(1).join(':').trim();
+    }
+    
+    // Registrant Organization
+    if ((lower.includes('registrant organization:') || lower.includes('registrant:')) && !result.registrantOrg) {
+      const org = line.split(':').slice(1).join(':').trim();
+      if (org && org.toLowerCase() !== 'redacted for privacy') {
+        result.registrantOrg = org;
+      }
+    }
+    
+    // Registrant Country
+    if (lower.includes('registrant country:') && !result.registrantCountry) {
+      result.registrantCountry = line.split(':').slice(1).join(':').trim();
+    }
+    
+    // Admin Email
+    if (lower.includes('admin email:') && !result.adminEmail) {
+      result.adminEmail = line.split(':').slice(1).join(':').trim();
+    }
+    
+    // Tech Email
+    if (lower.includes('tech email:') && !result.techEmail) {
+      result.techEmail = line.split(':').slice(1).join(':').trim();
+    }
   });
+
+  // Clean up data
+  if (result.registrar && result.registrar.toLowerCase().includes('redacted')) {
+    result.registrar = 'Privacy Protected';
+  }
 
   return result;
 }
