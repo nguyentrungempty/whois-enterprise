@@ -2,7 +2,7 @@ const whois = require('whois');
 const { exec } = require("child_process");
 
 async function getWhoisInfo(domain) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         exec(`whois ${domain}`, { timeout: 5000 }, (err, data) => {
             if (err) {
                 reject(err);
