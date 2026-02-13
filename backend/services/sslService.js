@@ -17,7 +17,7 @@ async function getSSLInfo(domain) {
       if (!cert || Object.keys(cert).length === 0) {
         resolve({
           hasSSL: false,
-          error: 'No SSL certificate found'
+          error: 'Không tìm thấy chứng chỉ SSL'
         });
         return;
       }
