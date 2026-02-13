@@ -461,23 +461,47 @@
             element.style.display = element.style.display === 'none' ? 'block' : 'none';
         }
 
-        async function loadWebsitePreview(domain) {
-          const res = await fetch(`/api/screenshot?domain=${domain}`);
-          const data = await res.json();
-        
-          const container = document.getElementById("website-preview");
-        
-          if (!data.screenshot) {
-            container.innerHTML = "<p>Không lấy được ảnh preview</p>";
-            return;
-          }
-        
-          container.innerHTML = `
-            <h3>Website Preview</h3>
-            <img src="${data.screenshot}" 
-                 style="width:100%;border-radius:12px;margin-top:10px;box-shadow:0 10px 30px rgba(0,0,0,0.4);">
-          `;
-        }
+async function loadWebsitePreview(domain) {
+  const res = await fetch(`/api/screenshot?domain=${domain}`);
+  const data = await res.json();
+
+  const container = document.getElementById("website-preview");
+
+  if (!data.screenshot) {
+    container.innerHTML = "<p>Không lấy được ảnh preview</p>";
+    return;
+  }
+
+  let imageSrc = data.screenshot;
+
+  // Nếu backend trả base64 thuần
+  if (!imageSrc.startsWith("data:image")) {
+    imageSrc = `data:image/png;base64,${imageSrc}`;
+  }
+container.innerHTML = `
+  <div style="text-align:center;padding:30px;color:#667eea;">
+    <div class="spinner"></div>
+    Đang tải ảnh website...
+  </div>
+`;
+
+  container.innerHTML = `
+    <div style="margin-top:20px;">
+      <h3 style="margin-bottom:10px;">🌐 Website Preview</h3>
+      <img src="${imageSrc}" 
+           style="
+             width:100%;
+             border-radius:16px;
+             box-shadow:0 20px 60px rgba(0,0,0,0.4);
+             border:1px solid #eee;
+             transition:transform .3s ease;
+           "
+           onmouseover="this.style.transform='scale(1.02)'"
+           onmouseout="this.style.transform='scale(1)'"
+      >
+    </div>
+  `;
+}
 
         function displayResults(data, domain) {
             let html = '';
@@ -939,6 +963,8 @@
 
             results.innerHTML = html;
             results.classList.add('active');
+            // Load screenshot sau khi render xong
+            setTimeout(() => loadWebsitePreview(domain), 300);
         }
     </script>
 </body>
