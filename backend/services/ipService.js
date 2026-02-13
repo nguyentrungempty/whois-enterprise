@@ -13,18 +13,18 @@ async function getIPInfo(domain) {
     return {
       ip: ip,
       allIPs: ips,
-      country: response.data.country || 'Unknown',
-      countryCode: response.data.countryCode || 'Unknown',
-      region: response.data.regionName || 'Unknown',
-      city: response.data.city || 'Unknown',
-      isp: response.data.isp || 'Unknown',
-      org: response.data.org || 'Unknown',
-      as: response.data.as || 'Unknown',
+      country: response.data.country || 'Không rõ',
+      countryCode: response.data.countryCode || 'Không rõ',
+      region: response.data.regionName || 'Không rõ',
+      city: response.data.city || 'Không rõ',
+      isp: response.data.isp || 'Không rõ',
+      org: response.data.org || 'Không rõ',
+      as: response.data.as || 'Không rõ',
       lat: response.data.lat || null,
       lon: response.data.lon || null
     };
   } catch (error) {
-    throw new Error(`IP lookup failed: ${error.message}`);
+    throw new Error(`Tra cứu địa chỉ IP thất bại: ${error.message}`);
   }
 }
 
