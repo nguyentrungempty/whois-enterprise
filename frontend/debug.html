@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WHOIS Raw Data Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #4ec9b0;
+            margin-bottom: 10px;
+            font-size: 1.5em;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px;
+            background: #3c3c3c;
+            border: 1px solid #555;
+            color: #d4d4d4;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .search-btn {
+            padding: 10px 20px;
+            background: #0e639c;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+        }
+
+        .search-btn:hover {
+            background: #1177bb;
+        }
+
+        .search-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .output {
+            background: #2d2d30;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 400px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .loading {
+            color: #4ec9b0;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error {
+            color: #f48771;
+            padding: 20px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            color: #4ec9b0;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #4ec9b0;
+            padding-bottom: 5px;
+        }
+
+        .json-key {
+            color: #9cdcfe;
+        }
+
+        .json-string {
+            color: #ce9178;
+        }
+
+        .json-number {
+            color: #b5cea8;
+        }
+
+        .json-boolean {
+            color: #569cd6;
+        }
+
+        .json-null {
+            color: #569cd6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 WHOIS Raw Data Viewer</h1>
+            <p>Xem dữ liệu WHOIS gốc và parsed</p>
+            <div class="search-box">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="domainInput" 
+                    placeholder="Nhập tên miền (ví dụ: google.com)"
+                    value="google.com"
+                >
+                <button class="search-btn" id="searchBtn" onclick="fetchWhois()">Truy Vấn WHOIS</button>
+            </div>
+        </div>
+
+        <div class="output" id="output">
+            <div style="color: #888; text-align: center; padding: 40px;">
+                Nhập tên miền và nhấn "Truy Vấn WHOIS" để xem dữ liệu
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchWhois() {
+            const domain = document.getElementById('domainInput').value.trim();
+            const output = document.getElementById('output');
+            const btn = document.getElementById('searchBtn');
+
+            if (!domain) {
+                output.innerHTML = '<div class="error">Vui lòng nhập tên miền</div>';
+                return;
+            }
+
+            btn.disabled = true;
+            output.innerHTML = '<div class="loading">⏳ Đang truy vấn WHOIS server...</div>';
+
+            try {
+                const response = await fetch(`/api/whois-raw?domain=${encodeURIComponent(domain)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Truy vấn thất bại');
+                }
+
+                displayWhoisData(data);
+            } catch (error) {
+                output.innerHTML = `<div class="error">❌ Lỗi: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function displayWhoisData(data) {
+            const output = document.getElementById('output');
+            
+            let html = '';
+
+            // Domain
+            html += `<div class="section">`;
+            html += `<div class="section-title">📍 Domain</div>`;
+            html += `<div>${data.domain}</div>`;
+            html += `</div>`;
+
+            // Parsed Data
+            html += `<div class="section">`;
+            html += `<div class="section-title">📊 Dữ Liệu Đã Parse</div>`;
+            html += `<div>${syntaxHighlight(JSON.stringify(data.parsed, null, 2))}</div>`;
+            html += `</div>`;
+
+            // Raw Data
+            html += `<div class="section">`;
+            html += `<div class="section-title">📄 Dữ Liệu WHOIS Gốc (Raw)</div>`;
+            html += `<div style="color: #ce9178;">${escapeHtml(data.raw || 'Không có dữ liệu')}</div>`;
+            html += `</div>`;
+
+            output.innerHTML = html;
+        }
+
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('domainInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchWhois();
+            }
+        });
+    </script>
+</body>
+</html>
