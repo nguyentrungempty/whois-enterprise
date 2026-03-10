@@ -1,104 +1,44 @@
 const axios = require('axios');
 
 async function analyzeWebsiteSecurity(domain) {
-  const results = {
-    score: 100,
-    checks: [],
-    details: {
-      headers: {},
-      ssl: null,
-      vulnerabilities: [],
-      errors: []
-    },
-    debug: {
-      attempts: [],
-      finalUrl: null,
-      statusCode: null,
-      responseTime: null
-    }
-  };
-
   try {
-    const startTime = Date.now();
-    
-    // Try multiple protocols and www variants
-    const urlsToTry = [
-      `https://${domain}`,
-      `https://www.${domain}`,
-      `http://${domain}`,
-      `http://www.${domain}`
-    ];
-
-    let response = null;
-    let successUrl = null;
-    
-    // Try each URL until one works
-    for (const url of urlsToTry) {
-      try {
-        results.debug.attempts.push({
-          url: url,
-          status: 'trying',
-          timestamp: new Date().toISOString()
-        });
-
-        response = await axios.get(url, {
-          timeout: 15000,
-          maxRedirects: 10,
-          validateStatus: (status) => status < 500,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8'
-          }
-        });
-
-        successUrl = url;
-        results.debug.finalUrl = url;
-        results.debug.statusCode = response.status;
-        results.debug.responseTime = Date.now() - startTime;
-        
-        results.debug.attempts[results.debug.attempts.length - 1].status = 'success';
-        results.debug.attempts[results.debug.attempts.length - 1].statusCode = response.status;
-        
-        break;
-        
-      } catch (error) {
-        results.debug.attempts[results.debug.attempts.length - 1].status = 'failed';
-        results.debug.attempts[results.debug.attempts.length - 1].error = error.message;
-        continue;
+    const url = `https://${domain}`;
+    const results = {
+      score: 100,
+      checks: [],
+      details: {
+        headers: {},
+        ssl: null,
+        vulnerabilities: []
       }
-    }
+    };
 
-    if (!response) {
+    // Fetch website with security headers
+    let response;
+    try {
+      response = await axios.get(url, {
+        timeout: 10000,
+        maxRedirects: 5,
+        validateStatus: () => true,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      results.details.headers = response.headers;
+    } catch (error) {
       results.checks.push({
         name: 'Website Accessibility',
         status: 'fail',
         severity: 'high',
         score: -15,
-        message: 'Không thể truy cập website qua tất cả các URL đã thử'
+        message: `Không thể truy cập website: ${error.message}`
       });
       results.score -= 15;
-      results.details.errors.push('All connection attempts failed');
       return calculateFinalScore(results);
     }
 
-    if (response.status >= 400) {
-      const errorType = response.status >= 500 ? 'Server Error' : 'Client Error';
-      results.checks.push({
-        name: 'HTTP Status',
-        status: 'warning',
-        severity: response.status >= 500 ? 'high' : 'medium',
-        score: response.status >= 500 ? -10 : -5,
-        message: `Website trả về ${errorType}: ${response.status}`
-      });
-      results.score -= response.status >= 500 ? 10 : 5;
-      results.details.errors.push(`HTTP ${response.status}`);
-    }
-
-    results.details.headers = response.headers;
-
-    // Security checks
-    if (!successUrl.startsWith('https://')) {
+    // 1. HTTPS Check
+    if (!url.startsWith('https://')) {
       results.checks.push({
         name: 'HTTPS',
         status: 'fail',
@@ -117,6 +57,7 @@ async function analyzeWebsiteSecurity(domain) {
       });
     }
 
+    // 2. HTTP Strict Transport Security (HSTS)
     const hsts = response.headers['strict-transport-security'];
     if (!hsts) {
       results.checks.push({
@@ -124,7 +65,7 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'fail',
         severity: 'medium',
         score: -10,
-        message: 'Thiếu header Strict-Transport-Security'
+        message: 'Thiếu header Strict-Transport-Security (HSTS)'
       });
       results.score -= 10;
     } else {
@@ -133,10 +74,11 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'pass',
         severity: 'info',
         score: 0,
-        message: 'HSTS được cấu hình'
+        message: `HSTS được cấu hình: ${hsts}`
       });
     }
 
+    // 3. X-Frame-Options (Clickjacking Protection)
     const xFrameOptions = response.headers['x-frame-options'];
     if (!xFrameOptions) {
       results.checks.push({
@@ -144,7 +86,7 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'fail',
         severity: 'medium',
         score: -8,
-        message: 'Thiếu header X-Frame-Options'
+        message: 'Thiếu header X-Frame-Options - dễ bị tấn công Clickjacking'
       });
       results.score -= 8;
     } else {
@@ -153,10 +95,11 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'pass',
         severity: 'info',
         score: 0,
-        message: 'Bảo vệ Clickjacking được kích hoạt'
+        message: `Bảo vệ Clickjacking: ${xFrameOptions}`
       });
     }
 
+    // 4. X-Content-Type-Options
     const xContentType = response.headers['x-content-type-options'];
     if (!xContentType || xContentType.toLowerCase() !== 'nosniff') {
       results.checks.push({
@@ -173,10 +116,11 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'pass',
         severity: 'info',
         score: 0,
-        message: 'MIME sniffing được vô hiệu hóa'
+        message: 'MIME type sniffing được vô hiệu hóa'
       });
     }
 
+    // 5. X-XSS-Protection
     const xssProtection = response.headers['x-xss-protection'];
     if (!xssProtection || !xssProtection.includes('1')) {
       results.checks.push({
@@ -184,7 +128,7 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'warning',
         severity: 'low',
         score: -3,
-        message: 'Thiếu X-XSS-Protection'
+        message: 'Thiếu hoặc chưa bật X-XSS-Protection'
       });
       results.score -= 3;
     } else {
@@ -197,6 +141,7 @@ async function analyzeWebsiteSecurity(domain) {
       });
     }
 
+    // 6. Content-Security-Policy (CSP)
     const csp = response.headers['content-security-policy'];
     if (!csp) {
       results.checks.push({
@@ -204,7 +149,7 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'fail',
         severity: 'high',
         score: -12,
-        message: 'Thiếu Content-Security-Policy'
+        message: 'Thiếu Content-Security-Policy - website dễ bị XSS'
       });
       results.score -= 12;
     } else {
@@ -217,6 +162,7 @@ async function analyzeWebsiteSecurity(domain) {
       });
     }
 
+    // 7. Referrer-Policy
     const referrerPolicy = response.headers['referrer-policy'];
     if (!referrerPolicy) {
       results.checks.push({
@@ -224,7 +170,7 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'warning',
         severity: 'low',
         score: -3,
-        message: 'Thiếu Referrer-Policy'
+        message: 'Thiếu Referrer-Policy header'
       });
       results.score -= 3;
     } else {
@@ -233,10 +179,11 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'pass',
         severity: 'info',
         score: 0,
-        message: 'Referrer Policy được cấu hình'
+        message: `Referrer Policy: ${referrerPolicy}`
       });
     }
 
+    // 8. Permissions-Policy / Feature-Policy
     const permissionsPolicy = response.headers['permissions-policy'] || response.headers['feature-policy'];
     if (!permissionsPolicy) {
       results.checks.push({
@@ -244,7 +191,7 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'warning',
         severity: 'low',
         score: -3,
-        message: 'Thiếu Permissions-Policy'
+        message: 'Thiếu Permissions-Policy header'
       });
       results.score -= 3;
     } else {
@@ -257,6 +204,7 @@ async function analyzeWebsiteSecurity(domain) {
       });
     }
 
+    // 9. Server Header Disclosure
     const serverHeader = response.headers['server'];
     if (serverHeader && (serverHeader.includes('/') || /\d+\.\d+/.test(serverHeader))) {
       results.checks.push({
@@ -264,19 +212,21 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'warning',
         severity: 'low',
         score: -3,
-        message: `Server header tiết lộ thông tin: ${serverHeader}`
+        message: `Server header tiết lộ thông tin phiên bản: ${serverHeader}`
       });
       results.score -= 3;
+      results.details.vulnerabilities.push(`Server version disclosure: ${serverHeader}`);
     } else {
       results.checks.push({
         name: 'Server Header',
         status: 'pass',
         severity: 'info',
         score: 0,
-        message: 'Server header an toàn'
+        message: 'Server header không tiết lộ thông tin nhạy cảm'
       });
     }
 
+    // 10. X-Powered-By Header
     const poweredBy = response.headers['x-powered-by'];
     if (poweredBy) {
       results.checks.push({
@@ -284,19 +234,21 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'warning',
         severity: 'low',
         score: -3,
-        message: `Header X-Powered-By tiết lộ: ${poweredBy}`
+        message: `Header X-Powered-By tiết lộ công nghệ: ${poweredBy}`
       });
       results.score -= 3;
+      results.details.vulnerabilities.push(`Technology disclosure: ${poweredBy}`);
     } else {
       results.checks.push({
         name: 'X-Powered-By',
         status: 'pass',
         severity: 'info',
         score: 0,
-        message: 'Không có X-Powered-By'
+        message: 'Không có header X-Powered-By'
       });
     }
 
+    // 11. Cookie Security
     const setCookie = response.headers['set-cookie'];
     if (setCookie) {
       const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
@@ -304,8 +256,12 @@ async function analyzeWebsiteSecurity(domain) {
       
       cookies.forEach(cookie => {
         const cookieLower = cookie.toLowerCase();
-        if (!cookieLower.includes('secure')) insecureCookies++;
-        if (!cookieLower.includes('httponly')) insecureCookies++;
+        if (!cookieLower.includes('secure')) {
+          insecureCookies++;
+        }
+        if (!cookieLower.includes('httponly')) {
+          insecureCookies++;
+        }
       });
 
       if (insecureCookies > 0) {
@@ -314,7 +270,7 @@ async function analyzeWebsiteSecurity(domain) {
           status: 'fail',
           severity: 'medium',
           score: -8,
-          message: `${insecureCookies} cookie(s) thiếu flag bảo mật`
+          message: `${insecureCookies} cookie(s) thiếu flag Secure hoặc HttpOnly`
         });
         results.score -= 8;
       } else {
@@ -323,43 +279,40 @@ async function analyzeWebsiteSecurity(domain) {
           status: 'pass',
           severity: 'info',
           score: 0,
-          message: 'Cookies được bảo mật'
+          message: 'Tất cả cookies có flag Secure và HttpOnly'
         });
       }
     }
 
-    if (successUrl.startsWith('https://')) {
-      try {
-        const html = typeof response.data === 'string' ? response.data : '';
-        const httpResources = html.match(/http:\/\/[^"'\s<>]+/gi) || [];
-        
-        if (httpResources.length > 0) {
-          results.checks.push({
-            name: 'Mixed Content',
-            status: 'fail',
-            severity: 'high',
-            score: -10,
-            message: `Phát hiện ${httpResources.length} tài nguyên HTTP`
-          });
-          results.score -= 10;
-        } else {
-          results.checks.push({
-            name: 'Mixed Content',
-            status: 'pass',
-            severity: 'info',
-            score: 0,
-            message: 'Không có mixed content'
-          });
-        }
-      } catch (htmlError) {
-        results.details.errors.push(`Cannot parse HTML: ${htmlError.message}`);
+    // 12. Mixed Content Check (if HTTPS)
+    if (url.startsWith('https://')) {
+      const html = typeof response.data === 'string' ? response.data : '';
+      const httpResources = html.match(/http:\/\/[^"'\s<>]+/gi) || [];
+      
+      if (httpResources.length > 0) {
+        results.checks.push({
+          name: 'Mixed Content',
+          status: 'fail',
+          severity: 'high',
+          score: -10,
+          message: `Phát hiện ${httpResources.length} tài nguyên HTTP không bảo mật trong trang HTTPS`
+        });
+        results.score -= 10;
+        results.details.vulnerabilities.push(`Mixed content: ${httpResources.length} HTTP resources`);
+      } else {
+        results.checks.push({
+          name: 'Mixed Content',
+          status: 'pass',
+          severity: 'info',
+          score: 0,
+          message: 'Không có mixed content'
+        });
       }
     }
 
     return calculateFinalScore(results);
 
   } catch (error) {
-    results.details.errors.push(`Critical error: ${error.message}`);
     return {
       score: 0,
       level: 'critical',
@@ -368,29 +321,30 @@ async function analyzeWebsiteSecurity(domain) {
         status: 'error',
         severity: 'high',
         score: -100,
-        message: `Lỗi phân tích: ${error.message}`
+        message: `Lỗi phân tích bảo mật: ${error.message}`
       }],
-      details: results.details,
-      debug: results.debug
+      details: {}
     };
   }
 }
 
 function calculateFinalScore(results) {
+  // Ensure score is between 0 and 100
   results.score = Math.max(0, Math.min(100, results.score));
 
+  // Determine security level
   if (results.score >= 90) {
     results.level = 'good';
     results.summary = 'Website có cấu hình bảo mật tốt';
   } else if (results.score >= 70) {
     results.level = 'medium';
-    results.summary = 'Website có một số vấn đề bảo mật';
+    results.summary = 'Website có một số vấn đề bảo mật cần khắc phục';
   } else if (results.score >= 50) {
     results.level = 'poor';
-    results.summary = 'Website có nhiều vấn đề bảo mật';
+    results.summary = 'Website có nhiều vấn đề bảo mật cần được xử lý';
   } else {
     results.level = 'critical';
-    results.summary = 'Website có cấu hình bảo mật kém';
+    results.summary = 'Website có cấu hình bảo mật kém, cần khắc phục ngay';
   }
 
   return results;

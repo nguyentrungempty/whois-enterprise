@@ -1,449 +1,123 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Công Cụ Quét WHOIS Enterprise</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .search-box {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            margin-bottom: 15px;
-        }
-
-        .search-form {
-            display: flex;
-            gap: 10px;
-        }
-
-        .search-input {
-            flex: 1;
-            padding: 15px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        .search-input:focus, .tabs button:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .search-btn, .tabs button {
-            padding: 15px 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .search-btn:hover, .tabs button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .search-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: white;
-            font-size: 1.2em;
-            display: none;
-        }
-        
-        .tabs {
-            color: white;
-            font-size: 1.2em;
-            display: none;
-        }
-
-        .loading.active, .tabs.active {
-            display: block;
-        }
-
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .results {
-            display: none;
-        }
-
-        .results.active {
-            display: block;
-        }
-
-        .result-section {
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            margin-bottom: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-
-        .result-section h2 {
-            color: #333;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .result-section h2::before {
-            content: "●";
-            color: #667eea;
-            font-size: 1.2em;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-
-        .info-item {
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-
-        .info-label {
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-            text-transform: uppercase;
-        }
-
-        .info-value {
-            color: #333;
-            font-size: 1.1em;
-            word-break: break-all;
-        }
-
-        .risk-score {
-            text-align: center;
-            padding: 30px;
-        }
-
-        .risk-level {
-            display: inline-block;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-
-        .risk-low {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .risk-medium {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .risk-high {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .risk-critical {
-            background: #dc3545;
-            color: white;
-        }
-
-        .risk-list {
-            text-align: left;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .risk-item {
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .risk-item.high {
-            background: #f8d7da;
-            border-left: 4px solid #dc3545;
-        }
-
-        .risk-item.medium {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-        }
-
-        .risk-item.low {
-            background: #d1ecf1;
-            border-left: 4px solid #17a2b8;
-        }
-
-        .tag-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .tag {
-            display: inline-block;
-            padding: 5px 12px;
-            background: #667eea;
-            color: white;
-            border-radius: 15px;
-            font-size: 0.9em;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #dc3545;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 30px;
-            color: #666;
-            font-style: italic;
-        }
-
-        .raw-data {
-            margin-top: 15px;
-            padding: 15px;
-            background: #2d2d2d;
-            color: #f8f8f2;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85em;
-            max-height: 300px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-        }
-
-        .toggle-raw {
-            margin-top: 10px;
-            padding: 8px 15px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-
-        .toggle-raw:hover {
-            background: #5568d3;
-        }
-
-        .soa-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .soa-item {
-            padding: 10px;
-            background: white;
-            border-radius: 5px;
-            border-left: 3px solid #667eea;
-        }
-
-        .soa-label {
-            font-size: 0.8em;
-            color: #666;
-            margin-bottom: 3px;
-        }
-
-        .soa-value {
-            font-size: 0.95em;
-            color: #333;
-            font-weight: 500;
-        }
-        
-        .tabs button {
-            border: 2px solid #334155
-        }
-    
-        .tab {
-            display: none;
-            margin-top: 15px
-        }
-        
-        .tab.active {
-            display: block
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-
-            .search-form {
-                flex-direction: column;
-            }
-
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <title>Công Cụ Quét WHOIS & Phân Tích Website</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Công Cụ Quét WHOIS Enterprise</h1>
-            <p>Phân Tích Thông Tin Tên Miền & Bảo Mật Toàn Diện</p>
+            <h1>🔍 Công Cụ Quét WHOIS & Phân Tích Website</h1>
+            <p>Phân Tích Toàn Diện: WHOIS, DNS, Tech Stack, Debug & Sitemap</p>
         </div>
 
         <div class="search-box">
             <form class="search-form" id="searchForm">
-                <input 
-                    type="text" 
-                    class="search-input" 
-                    id="domainInput" 
-                    placeholder="Nhập tên miền (ví dụ: example.com)"
-                    required
-                >
-                <button type="submit" class="search-btn" id="searchBtn">Quét Tên Miền</button>
+                <input type="text" class="search-input" id="domainInput" 
+                       placeholder="Nhập tên miền (vd: facebook.com)" required>
+                <button type="submit" class="search-btn">🔍 Quét Toàn Bộ</button>
             </form>
         </div>
 
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Đang quét tên miền... Vui lòng đợi</p>
+            <p>Đang quét toàn bộ thông tin... (20-40 giây)</p>
         </div>
 
-        <div class="tabs" id="tabs">
-            <button onclick="show('score')">Rủi Ro Bảo Mật</button>
-            <button onclick="show('whois')">WHOIS</button>
-            <button onclick="show('dns')">DNS</button>
-            <button onclick="show('ip')">IP / Network</button>
-            <button onclick="show('ssl')">SSL</button>
-            <button onclick="show('tech')">Công nghệ sử dụng</button>
-        </div>
+        <div class="results-container" id="resultsContainer">
+            <div class="result-tabs">
+                <div class="result-tab active" onclick="switchTab('scan')">
+                    📊 WHOIS & Tech Stack
+                </div>
+                <div class="result-tab" onclick="switchTab('debug')">
+                    🔧 Debug & Lỗi
+                </div>
+                <div class="result-tab" onclick="switchTab('sitemap')">
+                    🗺️ Sitemap & URLs
+                </div>
+            </div>
 
-        <div class="results" id="results"></div>
+            <div class="tab-content active" id="scanTab"></div>
+            <div class="tab-content" id="debugTab"></div>
+            <div class="tab-content" id="sitemapTab"></div>
+        </div>
     </div>
 
     <script>
+        let allData = {};
+
         const form = document.getElementById('searchForm');
         const input = document.getElementById('domainInput');
         const loading = document.getElementById('loading');
-        const results = document.getElementById('results');
-        const searchBtn = document.getElementById('searchBtn');
+        const resultsContainer = document.getElementById('resultsContainer');
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const domain = input.value.trim();
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.result-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
             
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Tab').classList.add('active');
+        }
+
+        form.addEventListener('submit', async(e) => {
+            e.preventDefault();
+            let domain = input.value.trim();
             if (!domain) return;
 
             loading.classList.add('active');
-            results.classList.remove('active');
-            results.innerHTML = '';
-            searchBtn.disabled = true;
+            resultsContainer.classList.remove('active');
+
+            // Show extracted domain if URL was provided
+            const originalInput = domain;
+            if (domain.includes('://') || domain.startsWith('www.') || domain.includes('/')) {
+                // Extract domain for display
+                let extracted = domain
+                    .replace(/^https?:\/\//, '')
+                    .replace(/^www\./, '')
+                    .split('/')[0]
+                    .split('?')[0]
+                    .split('#')[0]
+                    .split(':')[0];
+            }
 
             try {
-                const response = await fetch(`/api/scan?domain=${encodeURIComponent(domain)}`);
-                const data = await response.json();
+                // Fetch all data in parallel
+                const [scanData, debugData, sitemapData] = await Promise.allSettled([
+                    fetch(`/api/scan?domain=${encodeURIComponent(domain)}`).then(r => r.json()),
+                    fetch(`/api/debug?domain=${encodeURIComponent(domain)}`).then(r => r.json()),
+                    fetch(`/api/sitemap?domain=${encodeURIComponent(domain)}`).then(r => r.json())
+                ]);
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Quét thất bại');
-                }
+                // Store all data
+                allData = {
+                    scan: scanData.status === 'fulfilled' ? scanData.value : { error: scanData.reason },
+                    debug: debugData.status === 'fulfilled' ? debugData.value : { error: debugData.reason },
+                    sitemap: sitemapData.status === 'fulfilled' ? sitemapData.value : { error: sitemapData.reason }
+                };
 
-                displayResults(data, domain);
+                // Display all results
+                displayScanResults(allData.scan, domain);
+                displayDebugResults(allData.debug);
+                displaySitemapResults(allData.sitemap);
+
+                resultsContainer.classList.add('active');
             } catch (error) {
-                results.innerHTML = `
-                    <div class="result-section">
-                        <div class="error">
-                            <strong>Lỗi:</strong> ${error.message}
-                        </div>
-                    </div>
-                `;
-                results.classList.add('active');
+                alert('Lỗi: ' + error.message);
             } finally {
                 loading.classList.remove('active');
-                searchBtn.disabled = false;
-                tabs.classList.add('active');
             }
+
         });
-        
-        function show(t) {
-            document.querySelectorAll(".tab").forEach(e => e.classList.remove("active"));
-            document.getElementById(t).classList.add("active");
-        }
 
         function hasData(obj) {
             if (!obj || obj.error) return false;
@@ -456,117 +130,106 @@
             });
         }
 
-        function toggleRawData(id) {
-            const element = document.getElementById(id);
-            element.style.display = element.style.display === 'none' ? 'block' : 'none';
+        function getScoreColor(score) {
+            if (score >= 90) return '#10b981'; // Green
+            if (score >= 70) return '#f59e0b'; // Orange
+            if (score >= 50) return '#f97316'; // Dark orange
+            return '#ef4444'; // Red
         }
 
-async function loadWebsitePreview(domain) {
-  const res = await fetch(`/api/screenshot?domain=${domain}`);
-  const data = await res.json();
+        function animateGauge(score) {
+            const circumference = 251.2;
+            const offset = circumference - (score / 100) * circumference;
 
-  const container = document.getElementById("website-preview");
+            setTimeout(() => {
+                const arc = document.querySelector('.gauge-arc-fill');
+                const scoreValue = document.querySelector('.gauge-score-value');
+                const scoreStatus = document.querySelector('.score-status');
 
-  if (!data.screenshot) {
-    container.innerHTML = "<p>Không lấy được ảnh preview</p>";
-    return;
-  }
+                if (arc && scoreValue && scoreStatus) {
+                    const color = getScoreColor(score);
+                    arc.style.strokeDashoffset = offset;
+                    arc.style.stroke = color;
+                    scoreValue.style.color = color;
+                    scoreValue.textContent = score;
+                    scoreStatus.style.color = color;
+                }
+            }, 100);
+        }
 
-  let imageSrc = data.screenshot;
 
-  // Nếu backend trả base64 thuần
-  if (!imageSrc.startsWith("data:image")) {
-    imageSrc = `data:image/png;base64,${imageSrc}`;
-  }
-container.innerHTML = `
-  <div style="text-align:center;padding:30px;color:#667eea;">
-    <div class="spinner"></div>
-    Đang tải ảnh website...
-  </div>
-`;
+        async function loadWebsitePreview(domain) {
+            const res = await fetch(`/api/screenshot?domain=${domain}`);
+            const data = await res.json();
 
-  container.innerHTML = `
-    <div style="margin-top:20px;">
-      <h3 style="margin-bottom:10px;">🌐 Website Preview</h3>
-      <img src="${imageSrc}" 
-           style="
-             width:100%;
-             border-radius:16px;
-             box-shadow:0 20px 60px rgba(0,0,0,0.4);
-             border:1px solid #eee;
-             transition:transform .3s ease;
-           "
-      >
-    </div>
-  `;
-}
+            const container = document.getElementById("website-preview");
 
-        function displayResults(data, domain) {
-            let html = '';
-
-            // Risk Score
-            if (data.riskScore) {
-                const riskClass = `risk-${data.riskScore.level}`;
-                const riskText = {
-                    'low': 'THẤP',
-                    'medium': 'TRUNG BÌNH',
-                    'high': 'CAO',
-                    'critical': 'NGHIÊM TRỌNG'
-                };
-                html += `
-                    <div id="score" class="tab result-section active">
-                        <h2>Đánh Giá Rủi Ro Bảo Mật</h2>
-                        <div class="risk-score">
-                            <div class="risk-level ${riskClass}">
-                                RỦI RO ${riskText[data.riskScore.level]}
-                            </div>
-                            <p style="font-size: 1.2em; margin-bottom: 20px;">
-                                Điểm: ${data.riskScore.score}/100
-                            </p>
-                            <div id="website-preview"></div>
-                            ${data.riskScore.risks && data.riskScore.risks.length > 0 ? `
-                                <div class="risk-list">
-                                    ${data.riskScore.risks.map(risk => `
-                                        <div class="risk-item ${risk.severity}">
-                                            <span style="font-size: 1.2em;">⚠️</span>
-                                            <span>${risk.message}</span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : '<p>Không phát hiện rủi ro đáng kể</p>'}
-                        </div>
-                    </div>
-                `;
+            if (!data.screenshot) {
+                container.innerHTML = "<p>Không lấy được ảnh preview</p>";
+                return;
             }
+
+            let imageSrc = data.screenshot;
+
+            // Nếu backend trả base64 thuần
+            if (!imageSrc.startsWith("data:image")) {
+                imageSrc = `data:image/png;base64,${imageSrc}`;
+            }
+            container.innerHTML = `
+                <div style="text-align:center;padding:30px;color:#667eea;">
+                    <div class="spinner"></div>
+                    Đang tải ảnh website...
+                </div>
+            `;
+            container.innerHTML = `
+                <div style="margin-top:20px;text-align: center;">
+                <h2 style="margin-bottom:10px;">🌐 Website Preview</h2>
+                <img src="${imageSrc}" 
+                    style="max-width:100%;height:auto;width:100%;
+                        border-radius:16px;
+                        box-shadow:0 20px 60px rgba(0,0,0,0.4);
+                        border:1px solid #eee;
+                        transition:transform .3s ease;
+                    "
+                >
+                </div>
+            `;
+        }
+
+        function displayScanResults(data, domain) {
+            let html = '';
 
             // WHOIS Info
             if (data.whois) {
-                html += `<div id="whois" class="tab result-section"><h2>Thông Tin WHOIS</h2>`;
-                
-                if (data.whois.error) {
-                    html += `<div class="error">❌ ${data.whois.error}</div>`;
-                } else if (!hasData(data.whois)) {
-                    html += `<div class="empty-state">⚠️ Không có dữ liệu WHOIS được parse</div>`;
-                    
-                    if (data.whois.raw) {
-                        html += `
-                            <button class="toggle-raw" onclick="toggleRawData('rawWhois')">
-                                🔍 Xem Dữ Liệu WHOIS Gốc
-                            </button>
-                            <div id="rawWhois" class="raw-data" style="display: none;">${data.whois.raw}</div>
-                        `;
-                    }
-                } else {
-                    html += `<div class="info-grid">`;
-                    
+                html += `<div class="result-section"><h2>Thông Tin WHOIS</h2>`;
+
+                const hasData = data.whois.registrar || data.whois.creationDate ||
+                    (data.whois.nameServers && data.whois.nameServers.length > 0);
+
+                if (!hasData && data.whois.error) {
+                    html += `
+                        <div class="error">
+                            <strong>❌ ${data.whois.error}</strong><br>
+                            ${data.whois.message || ''}
+                            ${data.whois.manualCheck ? `
+                                <br><br>
+                                <a href="${data.whois.manualCheck}" target="_blank" style="color: #0066cc;">
+                                    🔍 Truy vấn thủ công tại đây
+                                </a>
+                            ` : ''}
+                        </div>
+                    `;
+                } else if (hasData) {            
+                html += `<div class="info-grid">`;
+
                     if (data.whois.registrar) {
                         html += `
                             <div class="info-item">
-                                <div class="info-label">Nhà Đăng Ký</div>
+                                <div class="info-label">Quản lý tại Nhà đăng ký</div>
                                 <div class="info-value">${data.whois.registrar}</div>
                             </div>`;
                     }
-                    
+
                     if (data.whois.registrarUrl) {
                         html += `
                             <div class="info-item">
@@ -574,39 +237,66 @@ container.innerHTML = `
                                 <div class="info-value"><a href="${data.whois.registrarUrl}" target="_blank">${data.whois.registrarUrl}</a></div>
                             </div>`;
                     }
-                    
-                    if (data.whois.creationDate) {
+
+
+                    // Creation Date - NEW ✅
+                    if (data.whois.creationDateFormatted || data.whois.creationDate) {
                         html += `
                             <div class="info-item">
-                                <div class="info-label">Ngày Tạo</div>
-                                <div class="info-value">${data.whois.creationDate}</div>
+                                <div class="info-label">Ngày đăng ký</div>
+                                <div class="info-value">${data.whois.creationDateFormatted || data.whois.creationDate}</div>
                             </div>`;
                     }
-                    
-                    if (data.whois.expirationDate) {
+
+                    // Expiration Date - NEW ✅ (with days remaining)
+                    if (data.whois.expirationDateFormatted || data.whois.expirationDate) {
+                        const days = data.whois.expirationDaysRemaining;
+                        let daysClass = 'days-good';
+                        let daysText = '';
+                        
+                        if (days !== null && days !== undefined) {
+                            if (days < 0) {
+                                daysClass = 'days-danger';
+                                daysText = `Đã hết hạn ${Math.abs(days)} ngày`;
+                            } else if (days < 30) {
+                                daysClass = 'days-danger';
+                                daysText = `⚠️ Còn ${days} ngày`;
+                            } else if (days < 90) {
+                                daysClass = 'days-warning';
+                                daysText = `Còn ${days} ngày`;
+                            } else {
+                                daysText = `Còn ${days} ngày`;
+                            }
+                        }
+                        
                         html += `
                             <div class="info-item">
                                 <div class="info-label">Ngày Hết Hạn</div>
-                                <div class="info-value">${data.whois.expirationDate}</div>
-                            </div>`;
+                                <div class="info-value">
+                                    ${data.whois.expirationDateFormatted || data.whois.expirationDate}
+                                    ${daysText ? `<br><span class="days-remaining ${daysClass}">${daysText}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
                     }
-                    
+
+                    // Updated Date - NEW ✅
                     if (data.whois.updatedDate) {
                         html += `
                             <div class="info-item">
                                 <div class="info-label">Ngày Cập Nhật</div>
-                                <div class="info-value">${data.whois.updatedDate}</div>
+                                <div class="info-value">${data.whois.updatedDateFormatted || data.whois.updatedDate}</div>
                             </div>`;
                     }
-                    
+
                     if (data.whois.registrantOrg) {
                         html += `
                             <div class="info-item">
-                                <div class="info-label">Tổ Chức Đăng Ký</div>
+                                <div class="info-label">Chủ sở hữu tên miền</div>
                                 <div class="info-value">${data.whois.registrantOrg}</div>
                             </div>`;
                     }
-                    
+
                     if (data.whois.registrantCountry) {
                         html += `
                             <div class="info-item">
@@ -614,7 +304,7 @@ container.innerHTML = `
                                 <div class="info-value">${data.whois.registrantCountry}</div>
                             </div>`;
                     }
-                    
+
                     if (data.whois.dnssec) {
                         html += `
                             <div class="info-item">
@@ -622,9 +312,9 @@ container.innerHTML = `
                                 <div class="info-value">${data.whois.dnssec}</div>
                             </div>`;
                     }
-                    
+
                     html += `</div>`;
-                    
+
                     if (data.whois.status && data.whois.status.length > 0) {
                         html += `
                             <div class="info-item" style="margin-top: 15px;">
@@ -660,7 +350,7 @@ container.innerHTML = `
 
             // DNS Records
             if (data.dns) {
-                html += `<div id="dns" class="tab result-section"><h2>Bản Ghi DNS</h2>`;
+                html += `<div class="result-section"><h2>Bản Ghi DNS</h2>`;
                 
                 if (data.dns.error) {
                     html += `<div class="error">❌ ${data.dns.error}</div>`;
@@ -812,7 +502,7 @@ container.innerHTML = `
 
             // IP Information
             if (data.ip) {
-                html += `<div id="ip" class="tab result-section"><h2>Định Vị IP</h2>`;
+                html += `<div class="result-section"><h2>Định Vị IP</h2>`;
                 
                 if (data.ip.error) {
                     html += `<div class="error">❌ ${data.ip.error}</div>`;
@@ -857,7 +547,7 @@ container.innerHTML = `
 
             // SSL Certificate
             if (data.ssl) {
-                html += `<div id="ssl" class="tab result-section"><h2>Chứng Chỉ SSL</h2>`;
+                html += `<div class="result-section"><h2>Chứng Chỉ SSL</h2>`;
                 
                 if (data.ssl.hasSSL) {
                     html += `
@@ -902,68 +592,663 @@ container.innerHTML = `
 
             // Technology Stack
             if (data.tech) {
-                html += `<div id="tech" class="tab result-section"><h2>Công Nghệ Sử Dụng</h2>`;
+                html += `<div class="result-section"><h2>Công Nghệ Sử Dụng</h2>`;
                 
                 if (data.tech.error) {
                     html += `<div class="error">❌ ${data.tech.error}</div>`;
                 } else {
-                    html += `
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Máy Chủ</div>
-                                <div class="info-value">${data.tech.server}</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Powered By</div>
-                                <div class="info-value">${data.tech.poweredBy}</div>
-                            </div>
-                            ${data.tech.cms ? `
-                                <div class="info-item">
-                                    <div class="info-label">Hệ Quản Trị</div>
-                                    <div class="info-value">${data.tech.cms}</div>
-                                </div>
-                            ` : ''}
-                            ${data.tech.cdn ? `
-                                <div class="info-item">
-                                    <div class="info-label">CDN</div>
-                                    <div class="info-value">${data.tech.cdn}</div>
-                                </div>
-                            ` : ''}
-                            <div class="info-item">
-                                <div class="info-label">Cookies</div>
-                                <div class="info-value">${data.tech.cookies}</div>
-                            </div>
-                        </div>`;
-                    
-                    if (data.tech.framework && data.tech.framework.length > 0) {
+                    // Tech categories with Vietnamese labels
+                    const techCategories = [
+                        { key: 'cms', label: 'Hệ Quản Trị', icon: '📝' },
+                        { key: 'ecommerce', label: 'Ecommerce', icon: '🛒' },
+                        { key: 'databases', label: 'Cơ Sở Dữ Liệu', icon: '🗄️' },
+                        { key: 'pageBuilders', label: 'Page Builders', icon: '🏗️' },
+                        { key: 'blogs', label: 'Blog', icon: '✍️' },
+                        { key: 'liveChat', label: 'Live Chat', icon: '💬' },
+                        { key: 'webServers', label: 'Web Servers', icon: '🖥️' },
+                        { key: 'programmingLanguages', label: 'Ngôn Ngữ Lập Trình', icon: '💻' },
+                        { key: 'jsFrameworks', label: 'Framework JavaScript', icon: '⚛️' },
+                        { key: 'jsLibraries', label: 'Thư Viện JavaScript', icon: '📚' },
+                        { key: 'cssFrameworks', label: 'Framework CSS', icon: '🎨' },
+                        { key: 'analytics', label: 'Analytics', icon: '📊' },
+                        { key: 'cdn', label: 'CDN', icon: '🌐' },
+                        { key: 'seo', label: 'SEO', icon: '🔍' },
+                        { key: 'security', label: 'Bảo Mật', icon: '🔒' },
+                        { key: 'caching', label: 'Caching', icon: '⚡' },
+                        { key: 'advertising', label: 'Quảng Cáo', icon: '📢' },
+                        { key: 'marketing', label: 'Marketing', icon: '📈' },
+                        { key: 'paymentProcessors', label: 'Trình Xử Lý Thanh Toán', icon: '💳' },
+                        { key: 'videoPlayers', label: 'Video Players', icon: '▶️' },
+                        { key: 'maps', label: 'Maps', icon: '🗺️' },
+                        { key: 'fonts', label: 'Fonts', icon: '🔤' },
+                        { key: 'hosting', label: 'Hosting', icon: '☁️' },
+                        { key: 'containerization', label: 'Containerization', icon: '🐳' },
+                        { key: 'reverseProxy', label: 'Reverse Proxy', icon: '🔄' },
+                        { key: 'loadBalancers', label: 'Load Balancers', icon: '⚖️' }
+                    ];
+
+                    html += '<div class="tech-grid">';
+
+                    techCategories.forEach(category => {
+                        const items = data.tech[category.key];
+                        if (items && items.length > 0) {
+                            html += `
+                                <div class="tech-category-box">
+                                    <div class="tech-category-title">
+                                        <span class="tech-icon">${category.icon}</span>
+                                        <span class="tech-label">${category.label}</span>
+                                    </div>
+                                    <div class="tech-items-list">`;
+                            
+                            items.forEach(item => {
+                                // Handle both string and object format
+                                const name = typeof item === 'string' ? item : (item.name || JSON.stringify(item));
+                                const version = typeof item === 'object' && item.version ? item.version : null;
+                                
+                                html += `
+                                    <div class="tech-item-card">
+                                        <span class="tech-name">${name}</span>
+                                        ${version ? `<span class="tech-version">${version}</span>` : ''}
+                                    </div>`;
+                            });
+
+                            html += `
+                                    </div>
+                                </div>`;
+                        }
+                    });
+
+                    // Legacy fields - Server and Powered By
+                    if (data.tech.server && data.tech.server !== 'Unknown') {
                         html += `
-                            <div class="info-item" style="margin-top: 15px;">
-                                <div class="info-label">Frameworks</div>
-                                <div class="tag-list">
-                                    ${data.tech.framework.map(f => `<span class="tag">${f}</span>`).join('')}
+                            <div class="tech-category-box">
+                                <div class="tech-category-title">
+                                    <span class="tech-icon">🖥️</span>
+                                    <span class="tech-label">Máy Chủ</span>
+                                </div>
+                                <div class="tech-items-list">
+                                    <div class="tech-item-card">
+                                        <span class="tech-name">${data.tech.server}</span>
+                                    </div>
                                 </div>
                             </div>`;
                     }
-                    
-                    if (data.tech.analytics && data.tech.analytics.length > 0) {
+
+                    if (data.tech.poweredBy && data.tech.poweredBy !== 'Unknown') {
                         html += `
-                            <div class="info-item" style="margin-top: 15px;">
-                                <div class="info-label">Công Cụ Phân Tích</div>
-                                <div class="tag-list">
-                                    ${data.tech.analytics.map(a => `<span class="tag">${a}</span>`).join('')}
+                            <div class="tech-category-box">
+                                <div class="tech-category-title">
+                                    <span class="tech-icon">⚡</span>
+                                    <span class="tech-label">Powered By</span>
+                                </div>
+                                <div class="tech-items-list">
+                                    <div class="tech-item-card">
+                                        <span class="tech-name">${data.tech.poweredBy}</span>
+                                    </div>
                                 </div>
                             </div>`;
                     }
+
+                    html += '</div>'; // Close tech-grid
                 }
                 
-                html += `</div>`;
+                html += `<div id="website-preview"></div></div>`; // Close result-section
             }
 
-            results.innerHTML = html;
-            results.classList.add('active');
+            // Security Analysis
+            if (data.security) {
+                const security = data.security;
+                const color = getScoreColor(security.score);
+
+                html += `
+                    <div class="result-section">
+                        <h2>Phân Tích Bảo Mật Website</h2>
+                        <div class="security-score-container">
+                            <div class="gauge-container">
+                                <svg class="gauge-background" viewBox="0 0 100 100">
+                                    <circle class="gauge-arc gauge-arc-bg" cx="50" cy="50" r="40"/>
+                                    <circle class="gauge-arc gauge-arc-fill" cx="50" cy="50" r="40"/>
+                                </svg>
+                                <div class="gauge-score">
+                                    <div class="gauge-score-value">0</div>
+                                    <div class="gauge-score-label">Điểm bảo mật</div>
+                                </div>
+                            </div>
+                            
+                            <div class="score-status">${security.summary || 'Đang phân tích...'}</div>
+                            <div class="score-description">
+                                Phân tích dựa trên ${security.checks?.length || 0} tiêu chí bảo mật bao gồm HTTPS, 
+                                security headers, cookie security, và các lỗ hổng phổ biến.
+                            </div>
+                            
+                            ${security.checks && security.checks.length > 0 ? `
+                                <div class="security-checks">
+                                    ${security.checks.map(check => {
+                                        const icons = {
+                                            'pass': '✅',
+                                            'fail': '❌',
+                                            'warning': '⚠️',
+                                            'error': '🔴'
+                                        };
+                                        return `
+                                        <div class="check-item ${check.status}">
+                                            <div class="check-icon">${icons[check.status] || '●'}</div>
+                                            <div class="check-content">
+                                                <div class="check-header">
+                                                    <div class="check-name">${check.name}</div>
+                                                    ${check.score !== 0 ? `
+                                                        <div class="check-score ${check.score < 0 ? 'negative' : 'neutral'}">
+                                                            ${check.score > 0 ? '+' : ''}${check.score}
+                                                        </div>
+                                                    ` : ''}
+                                                </div>
+                                                <div class="check-message">${check.message}</div>
+                                                
+                                            </div>
+                                        </div>
+                                    `}).join('')}
+                                </div>
+                            ` : `
+                                <div style="text-align: center; padding: 20px; color: #666;">
+                                    ${security.error || 'Không có dữ liệu bảo mật'}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                `;
+
+                setTimeout(() => animateGauge(security.score || 0), 100);
+            }
+
+            if (data.security.debug) {
+                html += `
+                    <div class="result-section debug-section" style="margin-top: 20px;">
+                        <details>
+                            <summary style="cursor: pointer; font-weight: 600; color: #666;">
+                                🔍 Thông tin Debug (Click để xem)
+                            </summary>
+                            <div style="margin-top: 10px; padding: 15px; background: #f8f9fa; border-radius: 8px; font-family: monospace; font-size: 0.85em;">
+                                ${data.security.debug.finalUrl ? `
+                                    <div style="margin-bottom: 8px;">
+                                        <strong>✅ URL thành công:</strong> ${data.security.debug.finalUrl}
+                                    </div>
+                                    <div style="margin-bottom: 8px;">
+                                        <strong>⏱️ Response time:</strong> ${data.security.debug.responseTime}ms
+                                    </div>
+                                    <div style="margin-bottom: 8px;">
+                                        <strong>📊 Status code:</strong> ${data.security.debug.statusCode}
+                                    </div>
+                                ` : ''}
+                                
+                                ${data.security.debug.attempts && data.security.debug.attempts.length > 0 ? `
+                                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
+                                        <strong>🔄 Connection Attempts:</strong>
+                                        <div style="margin-top: 8px;">
+                                            ${data.security.debug.attempts.map((attempt, idx) => `
+                                                <div style="margin: 6px 0; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid ${attempt.status === 'success' ? '#10b981' : '#ef4444'};">
+                                                    <div>${idx + 1}. ${attempt.url}</div>
+                                                    <div style="font-size: 0.9em; color: #666; margin-top: 4px;">
+                                                        Status: <span style="color: ${attempt.status === 'success' ? '#10b981' : '#ef4444'};">${attempt.status}</span>
+                                                        ${attempt.statusCode ? `(${attempt.statusCode})` : ''}
+                                                        ${attempt.error ? `<br>Error: ${attempt.error}` : ''}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${data.security.details.errors && data.security.details.errors.length > 0 ? `
+                                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
+                                        <strong>⚠️ Errors:</strong>
+                                        <div style="margin-top: 8px;">
+                                            ${data.security.details.errors.map(error => `
+                                                <div style="color: #dc2626; margin: 4px 0;">• ${error}</div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </details>
+                    </div>
+                `;
+            }
+
+            document.getElementById('scanTab').innerHTML = html;
             // Load screenshot sau khi render xong
             setTimeout(() => loadWebsitePreview(domain), 100);
         }
+
+        function displayDebugResults(data) {
+            let html = '<div class="result-section">';
+
+            // Check if domain exists
+            if (data.exists === false && data.error) {
+                html = `
+                    <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <div style="font-size: 4em; margin-bottom: 20px;">❌</div>
+                            <h2 style="color: #dc2626; margin-bottom: 10px;">${data.error.title}</h2>
+                            <p style="color: #666; font-size: 1.1em;">${data.error.message}</p>
+                        </div>
+                        
+                        <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #dc2626; margin: 20px 0;">
+                            <h3 style="color: #991b1b; margin-bottom: 15px;">🔍 Nguyên nhân có thể:</h3>
+                            ${data.error.possibleReasons.map(reason => `
+                                <div style="margin: 8px 0; color: #7f1d1d; line-height: 1.6;">${reason}</div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <h3 style="color: #333; margin-bottom: 20px;">${data.error.solutions.title}</h3>
+                            
+                            ${data.error.solutions.checkIfRegistered ? `
+                                <details open style="margin: 20px 0; border: 2px solid #3b82f6; border-radius: 10px; padding: 15px;">
+                                    <summary style="font-weight: 600; color: #1e40af; cursor: pointer; font-size: 1.1em;">
+                                        ${data.error.solutions.checkIfRegistered[0]}
+                                    </summary>
+                                    <div style="margin-top: 15px; padding-left: 10px;">
+                                        ${data.error.solutions.checkIfRegistered.slice(1).map(step => `
+                                            <div style="margin: 8px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                            ` : ''}
+                            
+                            ${data.error.solutions.checkDNS ? `
+                                <details style="margin: 20px 0; border: 2px solid #10b981; border-radius: 10px; padding: 15px;">
+                                    <summary style="font-weight: 600; color: #047857; cursor: pointer; font-size: 1.1em;">
+                                        ${data.error.solutions.checkDNS[0]}
+                                    </summary>
+                                    <div style="margin-top: 15px; padding-left: 10px;">
+                                        ${data.error.solutions.checkDNS.slice(1).map(step => `
+                                            <div style="margin: 8px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                            ` : ''}
+                            
+                            ${data.error.solutions.setupDNS ? `
+                                <details style="margin: 20px 0; border: 2px solid #f59e0b; border-radius: 10px; padding: 15px;">
+                                    <summary style="font-weight: 600; color: #d97706; cursor: pointer; font-size: 1.1em;">
+                                        ${data.error.solutions.setupDNS.title}
+                                    </summary>
+                                    <div style="margin-top: 15px;">
+                                        ${data.error.solutions.setupDNS.cpanel ? `
+                                            <div style="background: #eff6ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #3b82f6;">
+                                                <div style="font-weight: 600; color: #1e40af; margin-bottom: 10px;">
+                                                    ${data.error.solutions.setupDNS.cpanel[0]}
+                                                </div>
+                                                ${data.error.solutions.setupDNS.cpanel.slice(1).map(step => `
+                                                    <div style="margin: 6px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        ${data.error.solutions.setupDNS.cloudflare ? `
+                                            <div style="background: #fff7ed; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #f59e0b;">
+                                                <div style="font-weight: 600; color: #d97706; margin-bottom: 10px;">
+                                                    ${data.error.solutions.setupDNS.cloudflare[0]}
+                                                </div>
+                                                ${data.error.solutions.setupDNS.cloudflare.slice(1).map(step => `
+                                                    <div style="margin: 6px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        ${data.error.solutions.setupDNS.registrar ? `
+                                            <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #10b981;">
+                                                <div style="font-weight: 600; color: #047857; margin-bottom: 10px;">
+                                                    ${data.error.solutions.setupDNS.registrar[0]}
+                                                </div>
+                                                ${data.error.solutions.setupDNS.registrar.slice(1).map(step => `
+                                                    <div style="margin: 6px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </details>
+                            ` : ''}
+                            
+                            ${data.error.solutions.waitTime ? `
+                                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+                                    ${data.error.solutions.waitTime.map(line => `
+                                        <div style="margin: 6px 0; line-height: 1.8; color: #78350f;">${escapeHtml(line)}</div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.error.solutions.commonMistakes ? `
+                                <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #dc2626; margin: 20px 0;">
+                                    ${data.error.solutions.commonMistakes.map(line => `
+                                        <div style="margin: 6px 0; line-height: 1.8; color: #7f1d1d;">${escapeHtml(line)}</div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${data.error.nextSteps ? `
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-top: 30px;">
+                                ${data.error.nextSteps.map(line => `
+                                    <div style="margin: 8px 0; line-height: 1.8;">${escapeHtml(line)}</div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                results.innerHTML = html;
+                return;
+            }
+
+            // Normal debug results (existing code)
+            html += `
+                <div class="summary-box">
+                    <h2>📊 Tổng Quan Debug</h2>
+                    <div class="summary-grid">
+                        <div class="summary-item critical-issues">
+                            <div class="summary-number">${data.summary.criticalIssues}</div>
+                            <div class="summary-label">Lỗi Nghiêm Trọng</div>
+                        </div>
+                        <div class="summary-item warnings">
+                            <div class="summary-number">${data.summary.warnings}</div>
+                            <div class="summary-label">Cảnh Báo</div>
+                        </div>
+                        <div class="summary-item passed-tests">
+                            <div class="summary-number">${data.summary.passed}</div>
+                            <div class="summary-label">Tests Passed</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-number">${data.summary.totalIssues}</div>
+                            <div class="summary-label">Tổng Vấn Đề</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Recommendations
+            if (data.recommendations && data.recommendations.length > 0) {
+                html += '<div class="recommendations"><h2>💡 Khuyến Nghị</h2>';
+                data.recommendations.forEach(rec => {
+                    html += `
+                        <div class="recommendation-item">
+                            <div class="recommendation-title">${rec.title}</div>
+                            <div>${rec.description}</div>
+                            <div style="margin-top: 10px; font-style: italic;">
+                                → ${rec.action}
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+
+            // Categories
+            const categoryIcons = {
+                dns: '🌐',
+                connectivity: '🔌',
+                ssl: '🔒',
+                http: '📡',
+                performance: '⚡',
+                configuration: '⚙️'
+            };
+
+            const categoryNames = {
+                dns: 'DNS Resolution',
+                connectivity: 'Connectivity',
+                ssl: 'SSL/TLS',
+                http: 'HTTP Response',
+                performance: 'Performance',
+                configuration: 'Configuration'
+            };
+
+            for (const [category, checks] of Object.entries(data.categories)) {
+                if (checks.length === 0) continue;
+
+                html += `
+                    <div class="category-section">
+                        <div class="category-header">
+                            <span>${categoryIcons[category] || '📋'}</span>
+                            <span>${categoryNames[category] || category}</span>
+                        </div>
+                `;
+
+                checks.forEach((check, index) => {
+                    const badgeClass = `badge-${check.status}`;
+                    const statusIcon = {
+                        'pass': '✅',
+                        'fail': '❌',
+                        'warning': '⚠️'
+                    }[check.status] || '●';
+
+                    html += `
+                        <div class="check-item ${check.status}">
+                            <div class="check-header">
+                                <div class="check-title">${statusIcon} ${check.test}</div>
+                                <span class="check-badge ${badgeClass}">
+                                    ${check.status.toUpperCase()}
+                                </span>
+                            </div>
+                            <div class="check-message">${check.message}</div>
+                            ${check.details ? `
+                                <div class="check-details">
+                                    ${typeof check.details === 'object' ? 
+                                        JSON.stringify(check.details, null, 2) : 
+                                        check.details}
+                                </div>
+                            ` : ''}
+                            ${check.solution ? `
+                                <button class="toggle-solution" onclick="toggleSolution('sol-${category}-${index}')">
+                                    📖 Xem Hướng Dẫn Khắc Phục Chi Tiết
+                                </button>
+                                <div id="sol-${category}-${index}" class="solution-box hidden">
+                                    <div class="solution-title">✨ ${check.solution.title}</div>
+                                    
+                                    ${check.solution.forBeginners ? `
+                                        <div style="background: #fef3c7; padding: 10px; border-radius: 5px; margin: 10px 0; font-size: 0.9em;">
+                                            👋 <strong>Dành cho người mới:</strong> Hướng dẫn dễ hiểu, không cần biết code!
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.cpanel ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #0066cc; margin-bottom: 10px;">
+                                                📘 ${check.solution.cpanel[0] || 'Với cPanel:'}
+                                            </div>
+                                            <div style="background: #f0f9ff; padding: 15px; border-radius: 5px; border-left: 3px solid #0066cc;">
+                                                ${check.solution.cpanel.slice(1).map(step => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.cloudflare ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #f48120; margin-bottom: 10px;">
+                                                ☁️ ${check.solution.cloudflare[0] || 'Với Cloudflare:'}
+                                            </div>
+                                            <div style="background: #fff7ed; padding: 15px; border-radius: 5px; border-left: 3px solid #f48120;">
+                                                ${check.solution.cloudflare.slice(1).map(step => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.wordpress ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #21759b; margin-bottom: 10px;">
+                                                📝 ${check.solution.wordpress[0] || 'Với WordPress:'}
+                                            </div>
+                                            <div style="background: #f0f6fc; padding: 15px; border-radius: 5px; border-left: 3px solid #21759b;">
+                                                ${check.solution.wordpress.slice(1).map(step => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.howToFind ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #7c3aed; margin-bottom: 10px;">
+                                                ❓ ${check.solution.howToFind[0] || 'Thông tin bổ sung:'}
+                                            </div>
+                                            <div style="background: #faf5ff; padding: 15px; border-radius: 5px; border-left: 3px solid #7c3aed;">
+                                                ${check.solution.howToFind.slice(1).map(step => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.registrar ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #059669; margin-bottom: 10px;">
+                                                🏢 ${check.solution.registrar[0] || 'Với Registrar:'}
+                                            </div>
+                                            <div style="background: #f0fdf4; padding: 15px; border-radius: 5px; border-left: 3px solid #059669;">
+                                                ${check.solution.registrar.slice(1).map(step => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.checkList ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #dc2626; margin-bottom: 10px;">
+                                                ✅ ${check.solution.checkList[0] || 'Checklist:'}
+                                            </div>
+                                            <div style="background: #fef2f2; padding: 15px; border-radius: 5px; border-left: 3px solid #dc2626;">
+                                                ${check.solution.checkList.slice(1).map(item => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(item)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.steps ? `
+                                        <ol class="solution-steps">
+                                            ${check.solution.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}
+                                        </ol>
+                                    ` : ''}
+                                    
+                                    ${check.solution.general ? `
+                                        <div style="margin: 15px 0;">
+                                            ${check.solution.general.map(line => `
+                                                <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(line)}</div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    ${check.solution.reference ? `
+                                        <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid #e0e0e0;">
+                                            <strong style="color: #667eea;">📚 Video hướng dẫn:</strong><br>
+                                            <a href="${check.solution.reference}" target="_blank" style="color: #667eea; text-decoration: underline;">
+                                                ${check.solution.reference}
+                                            </a>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+            }
+
+            html += '</div>';
+            document.getElementById('debugTab').innerHTML = html;
+        }
+
+        function displaySitemapResults(data) {
+            let html = '<div class="result-section">';
+
+            html += `
+                <h2>📊 Thống Kê URLs</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${data.totalUrls || 0}</div>
+                        <div class="stat-label">Tổng URLs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(data.sitemaps || []).length}</div>
+                        <div class="stat-label">Sitemaps</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${data.analysis?.recentUrls || 0}</div>
+                        <div class="stat-label">URLs Mới</div>
+                    </div>
+                </div>
+
+                <h2>🔗 Danh Sách URLs</h2>
+                <button class="export-btn" onclick="exportCSV()">📥 Export CSV</button>
+                <div class="url-list">
+                    ${renderUrls(data.urls || [])}
+                </div>
+            `;
+
+            html += '</div>';
+            document.getElementById('sitemapTab').innerHTML = html;
+            
+            window.currentUrls = data.urls || [];
+        }
+
+        function renderUrls(urls) {
+            if (!urls || urls.length === 0) {
+                return '<p style="text-align: center; padding: 40px; color: #666;">Không tìm thấy URLs</p>';
+            }
+
+            return urls.slice(0, 100).map(url => {
+                const type = getUrlType(url.loc);
+                return `
+                    <div class="url-item">
+                        <a href="${url.loc}" target="_blank" class="url-link">${url.loc}</a>
+                        <span class="badge badge-${type}">${type}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getUrlType(url) {
+            const path = url.toLowerCase();
+            if (path.includes('/blog/') || path.includes('/post/')) return 'blog';
+            if (path.includes('/product/') || path.includes('/shop/')) return 'product';
+            return 'page';
+        }
+
+        function exportCSV() {
+            if (!currentUrls || currentUrls.length === 0) {
+                alert('Không có URLs để export');
+                return;
+            }
+
+            const csv = ['URL,Type'];
+            currentUrls.forEach(url => {
+                const type = getUrlType(url.loc);
+                csv.push([url.loc, type].join(','));
+            });
+
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const urlBlob = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlBlob;
+            a.download = `sitemap-${new Date().getTime()}.csv`;
+            a.click();
+        }
+        function toggleSolution(id) {
+            const element = document.getElementById(id);
+            element.classList.toggle('hidden');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
     </script>
 </body>
+
 </html>

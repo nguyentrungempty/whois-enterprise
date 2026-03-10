@@ -4,29 +4,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Công Cụ Quét WHOIS Enterprise</title>
+    <title>Công Cụ Quét WHOIS & Phân Tích Website</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Công Cụ Quét WHOIS & Debug Website</h1>
-            <p>Phân Tích Thông Tin Tên Miền & Chẩn Đoán Lỗi Website</p>
+            <h1>🔍 Công Cụ Quét WHOIS & Phân Tích Website</h1>
+            <p>Phân Tích Toàn Diện Tên Miền, Debug Lỗi & Quét Sitemap</p>
         </div>
 
         <div class="search-box">
             <form class="search-form" id="searchForm">
-                <input type="text" class="search-input" id="domainInput" placeholder="Nhập tên miền (vd: facebook.com)" required>
-                <button type="submit" class="search-btn" id="searchBtn">Quét Tên Miền</button>
+                <input type="text" class="search-input" id="domainInput" placeholder="Nhập tên miền (vd: facebook.com hoặc https://facebook.com)" required>
+                <button type="submit" class="search-btn" id="searchBtn">📊 Quét Tên Miền</button>
             </form>
 
             <div class="mode-tabs">
                 <div class="mode-tab active" data-mode="scan" onclick="switchMode('scan')">
-                    📊 Quét Thông Tin
+                    📊 Quét Thông Tin WHOIS
                 </div>
                 <div class="mode-tab" data-mode="debug" onclick="switchMode('debug')">
                     🔧 Debug & Khắc Phục Lỗi
+                </div>
+                <div class="mode-tab" data-mode="sitemap" onclick="switchMode('sitemap')">
+                    🗺️ Quét Sitemap & URLs
                 </div>
             </div>
         </div>
@@ -51,6 +54,7 @@
 
     <script>
         let currentMode = 'scan';
+        let currentUrls = [];
 
         const form = document.getElementById('searchForm');
         const input = document.getElementById('domainInput');
@@ -63,15 +67,17 @@
             currentMode = mode;
             document.querySelectorAll('.mode-tab').forEach(tab => {
                 tab.classList.remove('active');
+                tabs.classList.remove('active');
             });
             document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
 
             // Update button text
-            if (mode === 'debug') {
-                searchBtn.textContent = '🔧 Debug Website';
-            } else {
-                searchBtn.textContent = '📊 Quét Tên Miền';
-            }
+            const buttonText = {
+                'scan': '📊 Quét Tên Miền',
+                'debug': '🔧 Debug Website',
+                'sitemap': '🗺️ Quét Sitemap'
+            };
+            searchBtn.textContent = buttonText[mode];
 
             // Clear results
             results.classList.remove('active');
@@ -80,40 +86,73 @@
 
         form.addEventListener('submit', async(e) => {
             e.preventDefault();
-            const domain = input.value.trim();
+            let domain = input.value.trim();
             if (!domain) return;
+
+            // Show extracted domain if URL was provided
+            const originalInput = domain;
+            if (domain.includes('://') || domain.startsWith('www.') || domain.includes('/')) {
+                // Extract domain for display
+                let extracted = domain
+                    .replace(/^https?:\/\//, '')
+                    .replace(/^www\./, '')
+                    .split('/')[0]
+                    .split('?')[0]
+                    .split('#')[0]
+                    .split(':')[0];
+            }
 
             loading.classList.add('active');
             results.classList.remove('active');
             results.innerHTML = '';
 
+            // Set loading text
+            const loadingTexts = {
+                'scan': 'Đang quét tên miền...',
+                'debug': 'Đang chẩn đoán website... (10-30 giây)',
+                'sitemap': 'Đang quét sitemap... (10-30 giây)'
+            };
+            loadingText.textContent = loadingTexts[currentMode];
+
             if (currentMode === 'debug') {
                 loadingText.textContent = 'Đang chẩn đoán website... (có thể mất 10-30 giây)';
+                tabs.classList.add('remove');
             } else {
                 loadingText.textContent = 'Đang quét tên miền...';
             }
 
             try {
-                const endpoint = currentMode === 'debug' ? '/api/debug' : '/api/scan';
-                const response = await fetch(`${endpoint}?domain=${encodeURIComponent(domain)}`);
+                const endpoints = {
+                    'scan': '/api/scan',
+                    'debug': '/api/debug',
+                    'sitemap': '/api/sitemap'
+                };
+
+                const response = await fetch(`${endpoints[currentMode]}?domain=${encodeURIComponent(domain)}`);
                 const data = await response.json();
 
                 if (!response.ok) {
                     throw new Error(data.error || 'Quét thất bại');
                 }
 
-                if (currentMode === 'debug') {
-                    displayDebugResults(data);
-                } else {
+                // Display results based on mode
+                if (currentMode === 'scan') {
                     displayScanResults(data, domain);
+                    tabs.classList.add('active');
+                } else if (currentMode === 'debug') {
+                    displayDebugResults(data);
+                    tabs.classList.remove('active');
+                } else if (currentMode === 'sitemap') {
+                    displaySitemapResults(data);
+                    tabs.classList.remove('active');
                 }
             } catch (error) {
-                results.innerHTML = `<div class="result-section"><div class="error">${error.message}</div></div>`;
+                results.innerHTML = `<div class="result-section"><div class="error">❌ <strong>Lỗi:</strong> ${error.message}</div></div>`;
                 results.classList.add('active');
             } finally {
                 loading.classList.remove('active');
-		tabs.classList.add('active');
             }
+
         });
 
         function show(t) {
@@ -192,7 +231,7 @@
                 <div style="margin-top:20px;text-align: center;">
                 <h2 style="margin-bottom:10px;">🌐 Website Preview</h2>
                 <img src="${imageSrc}" 
-                    style="max-width:100%;height:auto;
+                    style="max-width:100%;height:auto;width:100%;
                         border-radius:16px;
                         box-shadow:0 20px 60px rgba(0,0,0,0.4);
                         border:1px solid #eee;
@@ -210,7 +249,10 @@
             if (data.whois) {
                 html += `<div id="whois" class="tab result-section active"><h2>Thông Tin WHOIS</h2>`;
 
-                if (data.whois.error) {
+                const hasData = data.whois.registrar || data.whois.creationDate ||
+                    (data.whois.nameServers && data.whois.nameServers.length > 0);
+
+                if (!hasData && data.whois.error) {
                     html += `
                         <div class="error">
                             <strong>❌ ${data.whois.error}</strong><br>
@@ -221,15 +263,9 @@
                                     🔍 Truy vấn thủ công tại đây
                                 </a>
                             ` : ''}
-                            ${data.whois.alternativeCheck ? `
-                                <br>
-                                <a href="${data.whois.alternativeCheck}" target="_blank" style="color: #0066cc;">
-                                    🔍 Hoặc thử tại đây
-                                </a>
-                            ` : ''}
                         </div>
                     `;
-                } else {                    
+                } else if (hasData) {            
                 html += `<div class="info-grid">`;
 
                     if (data.whois.registrar) {
@@ -250,7 +286,7 @@
 
 
                     // Creation Date - NEW ✅
-                    if (data.whois.creationDate) {
+                    if (data.whois.creationDateFormatted || data.whois.creationDate) {
                         html += `
                             <div class="info-item">
                                 <div class="info-label">Ngày đăng ký</div>
@@ -259,31 +295,35 @@
                     }
 
                     // Expiration Date - NEW ✅ (with days remaining)
-                    if (data.whois.expirationDate) {
-                        const daysRemaining = data.whois.expirationDaysRemaining;
+                    if (data.whois.expirationDateFormatted || data.whois.expirationDate) {
+                        const days = data.whois.expirationDaysRemaining;
+                        let daysClass = 'days-good';
                         let daysText = '';
-                        let daysColor = '';
-
-                        if (daysRemaining !== null && daysRemaining !== undefined) {
-                            if (daysRemaining < 0) {
-                                daysText = `<span style="color: #dc2626; font-weight: bold;">Đã hết hạn ${Math.abs(daysRemaining)} ngày</span>`;
-                            } else if (daysRemaining < 30) {
-                                daysText = `<span style="color: #dc2626; font-weight: bold;">Còn ${daysRemaining} ngày</span>`;
-                            } else if (daysRemaining < 90) {
-                                daysText = `<span style="color: #f59e0b; font-weight: bold;">Còn ${daysRemaining} ngày</span>`;
+                        
+                        if (days !== null && days !== undefined) {
+                            if (days < 0) {
+                                daysClass = 'days-danger';
+                                daysText = `Đã hết hạn ${Math.abs(days)} ngày`;
+                            } else if (days < 30) {
+                                daysClass = 'days-danger';
+                                daysText = `⚠️ Còn ${days} ngày`;
+                            } else if (days < 90) {
+                                daysClass = 'days-warning';
+                                daysText = `Còn ${days} ngày`;
                             } else {
-                                daysText = `<span style="color: #10b981;">Còn ${daysRemaining} ngày</span>`;
+                                daysText = `Còn ${days} ngày`;
                             }
                         }
-
+                        
                         html += `
                             <div class="info-item">
                                 <div class="info-label">Ngày Hết Hạn</div>
                                 <div class="info-value">
                                     ${data.whois.expirationDateFormatted || data.whois.expirationDate}
-                                    ${daysText ? `<br>${daysText}` : ''}
+                                    ${daysText ? `<br><span class="days-remaining ${daysClass}">${daysText}</span>` : ''}
                                 </div>
-                            </div>`;
+                            </div>
+                        `;
                     }
 
                     // Updated Date - NEW ✅
@@ -829,7 +869,127 @@
         function displayDebugResults(data) {
             let html = '';
 
-            // Summary
+            // Check if domain exists
+            if (data.exists === false && data.error) {
+                html = `
+                    <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <div style="font-size: 4em; margin-bottom: 20px;">❌</div>
+                            <h2 style="color: #dc2626; margin-bottom: 10px;">${data.error.title}</h2>
+                            <p style="color: #666; font-size: 1.1em;">${data.error.message}</p>
+                        </div>
+                        
+                        <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #dc2626; margin: 20px 0;">
+                            <h3 style="color: #991b1b; margin-bottom: 15px;">🔍 Nguyên nhân có thể:</h3>
+                            ${data.error.possibleReasons.map(reason => `
+                                <div style="margin: 8px 0; color: #7f1d1d; line-height: 1.6;">${reason}</div>
+                            `).join('')}
+                        </div>
+                        
+                        <div style="margin-top: 30px;">
+                            <h3 style="color: #333; margin-bottom: 20px;">${data.error.solutions.title}</h3>
+                            
+                            ${data.error.solutions.checkIfRegistered ? `
+                                <details open style="margin: 20px 0; border: 2px solid #3b82f6; border-radius: 10px; padding: 15px;">
+                                    <summary style="font-weight: 600; color: #1e40af; cursor: pointer; font-size: 1.1em;">
+                                        ${data.error.solutions.checkIfRegistered[0]}
+                                    </summary>
+                                    <div style="margin-top: 15px; padding-left: 10px;">
+                                        ${data.error.solutions.checkIfRegistered.slice(1).map(step => `
+                                            <div style="margin: 8px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                            ` : ''}
+                            
+                            ${data.error.solutions.checkDNS ? `
+                                <details style="margin: 20px 0; border: 2px solid #10b981; border-radius: 10px; padding: 15px;">
+                                    <summary style="font-weight: 600; color: #047857; cursor: pointer; font-size: 1.1em;">
+                                        ${data.error.solutions.checkDNS[0]}
+                                    </summary>
+                                    <div style="margin-top: 15px; padding-left: 10px;">
+                                        ${data.error.solutions.checkDNS.slice(1).map(step => `
+                                            <div style="margin: 8px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                        `).join('')}
+                                    </div>
+                                </details>
+                            ` : ''}
+                            
+                            ${data.error.solutions.setupDNS ? `
+                                <details style="margin: 20px 0; border: 2px solid #f59e0b; border-radius: 10px; padding: 15px;">
+                                    <summary style="font-weight: 600; color: #d97706; cursor: pointer; font-size: 1.1em;">
+                                        ${data.error.solutions.setupDNS.title}
+                                    </summary>
+                                    <div style="margin-top: 15px;">
+                                        ${data.error.solutions.setupDNS.cpanel ? `
+                                            <div style="background: #eff6ff; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #3b82f6;">
+                                                <div style="font-weight: 600; color: #1e40af; margin-bottom: 10px;">
+                                                    ${data.error.solutions.setupDNS.cpanel[0]}
+                                                </div>
+                                                ${data.error.solutions.setupDNS.cpanel.slice(1).map(step => `
+                                                    <div style="margin: 6px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        ${data.error.solutions.setupDNS.cloudflare ? `
+                                            <div style="background: #fff7ed; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #f59e0b;">
+                                                <div style="font-weight: 600; color: #d97706; margin-bottom: 10px;">
+                                                    ${data.error.solutions.setupDNS.cloudflare[0]}
+                                                </div>
+                                                ${data.error.solutions.setupDNS.cloudflare.slice(1).map(step => `
+                                                    <div style="margin: 6px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        ${data.error.solutions.setupDNS.registrar ? `
+                                            <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #10b981;">
+                                                <div style="font-weight: 600; color: #047857; margin-bottom: 10px;">
+                                                    ${data.error.solutions.setupDNS.registrar[0]}
+                                                </div>
+                                                ${data.error.solutions.setupDNS.registrar.slice(1).map(step => `
+                                                    <div style="margin: 6px 0; line-height: 1.8; color: #444;">${escapeHtml(step)}</div>
+                                                `).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </details>
+                            ` : ''}
+                            
+                            ${data.error.solutions.waitTime ? `
+                                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; border-left: 4px solid #f59e0b; margin: 20px 0;">
+                                    ${data.error.solutions.waitTime.map(line => `
+                                        <div style="margin: 6px 0; line-height: 1.8; color: #78350f;">${escapeHtml(line)}</div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                            
+                            ${data.error.solutions.commonMistakes ? `
+                                <div style="background: #fef2f2; padding: 20px; border-radius: 10px; border-left: 4px solid #dc2626; margin: 20px 0;">
+                                    ${data.error.solutions.commonMistakes.map(line => `
+                                        <div style="margin: 6px 0; line-height: 1.8; color: #7f1d1d;">${escapeHtml(line)}</div>
+                                    `).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        ${data.error.nextSteps ? `
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-top: 30px;">
+                                ${data.error.nextSteps.map(line => `
+                                    <div style="margin: 8px 0; line-height: 1.8;">${escapeHtml(line)}</div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+                
+                results.innerHTML = html;
+                results.classList.add('active');
+                return;
+            }
+
+            // Normal debug results (existing code)
             html += `
                 <div class="summary-box">
                     <h2>📊 Tổng Quan Debug</h2>
@@ -1003,6 +1163,19 @@
                                         </div>
                                     ` : ''}
                                     
+                                    ${check.solution.checkList ? `
+                                        <div style="margin: 15px 0;">
+                                            <div style="font-weight: 600; color: #dc2626; margin-bottom: 10px;">
+                                                ✅ ${check.solution.checkList[0] || 'Checklist:'}
+                                            </div>
+                                            <div style="background: #fef2f2; padding: 15px; border-radius: 5px; border-left: 3px solid #dc2626;">
+                                                ${check.solution.checkList.slice(1).map(item => `
+                                                    <div style="margin: 8px 0; line-height: 1.6;">${escapeHtml(item)}</div>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    
                                     ${check.solution.steps ? `
                                         <ol class="solution-steps">
                                             ${check.solution.steps.map(step => `<li>${escapeHtml(step)}</li>`).join('')}
@@ -1038,6 +1211,84 @@
             results.classList.add('active');
         }
 
+        function displaySitemapResults(data) {
+            let html = '';
+
+            html += `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${data.totalUrls || 0}</div>
+                        <div class="stat-label">Tổng URLs</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(data.sitemaps || []).length}</div>
+                        <div class="stat-label">Sitemaps</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${data.analysis?.recentUrls || 0}</div>
+                        <div class="stat-label">URLs Mới</div>
+                    </div>
+                </div>
+            `;
+
+            html += `
+                <div class="result-section">
+                    <h2>🔗 Danh Sách URLs</h2>
+                    <button class="export-btn" onclick="exportCSV()">📥 Export CSV</button>
+                    <div class="url-list">
+                        ${renderUrls(data.urls || [])}
+                    </div>
+                </div>
+            `;
+
+            results.innerHTML = html;
+            results.classList.add('active');
+            currentUrls = data.urls || [];
+        }
+
+        function renderUrls(urls) {
+            if (!urls || urls.length === 0) {
+                return '<p style="text-align: center; padding: 40px; color: #666;">Không tìm thấy URLs</p>';
+            }
+
+            return urls.slice(0, 100).map(url => {
+                const type = getUrlType(url.loc);
+                return `
+                    <div class="url-item">
+                        <a href="${url.loc}" target="_blank" class="url-link">${url.loc}</a>
+                        <span class="badge badge-${type}">${type}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getUrlType(url) {
+            const path = url.toLowerCase();
+            if (path.includes('/blog/') || path.includes('/post/')) return 'blog';
+            if (path.includes('/product/') || path.includes('/shop/')) return 'product';
+            return 'page';
+        }
+
+        function exportCSV() {
+            if (!currentUrls || currentUrls.length === 0) {
+                alert('Không có URLs để export');
+                return;
+            }
+
+            const csv = ['URL,Type'];
+            currentUrls.forEach(url => {
+                const type = getUrlType(url.loc);
+                csv.push([url.loc, type].join(','));
+            });
+
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const urlBlob = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = urlBlob;
+            a.download = `sitemap-${new Date().getTime()}.csv`;
+            a.click();
+        }
+        
         function toggleSolution(id) {
             const element = document.getElementById(id);
             element.classList.toggle('hidden');

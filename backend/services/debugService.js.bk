@@ -1,0 +1,936 @@
+const axios = require('axios');
+const https = require('https');
+const dns = require('dns').promises;
+
+// Create axios instance with SSL bypass
+const axiosInstance = axios.create({
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: false
+  })
+});
+
+async function debugWebsite(domain) {
+  const report = {
+    domain: domain,
+    timestamp: new Date().toISOString(),
+    summary: {
+      totalIssues: 0,
+      criticalIssues: 0,
+      warnings: 0,
+      passed: 0
+    },
+    categories: {
+      connectivity: [],
+      dns: [],
+      ssl: [],
+      http: [],
+      performance: [],
+      configuration: []
+    },
+    recommendations: []
+  };
+
+  console.log(`[DEBUG] Starting comprehensive debug for: ${domain}`);
+
+  // 1. DNS Resolution Check
+  await checkDNS(domain, report);
+
+  // 2. Connectivity Check
+  await checkConnectivity(domain, report);
+
+  // 3. SSL/TLS Check
+  await checkSSL(domain, report);
+
+  // 4. HTTP Response Check
+  await checkHTTP(domain, report);
+
+  // 5. Performance Check
+  await checkPerformance(domain, report);
+
+  // 6. Configuration Check
+  await checkConfiguration(domain, report);
+
+  // Calculate summary
+  calculateSummary(report);
+
+  // Generate recommendations
+  generateRecommendations(report);
+
+  return report;
+}
+
+async function checkDNS(domain, report) {
+  const category = 'dns';
+  console.log(`[DEBUG] Checking DNS for ${domain}...`);
+
+  try {
+    // A Records
+    try {
+      const addresses = await dns.resolve4(domain);
+      report.categories[category].push({
+        test: 'A Record Resolution',
+        status: 'pass',
+        severity: 'info',
+        message: `Tìm thấy ${addresses.length} IPv4 address(es)`,
+        details: addresses,
+        solution: null
+      });
+    } catch (error) {
+      report.categories[category].push({
+        test: 'A Record Resolution',
+        status: 'fail',
+        severity: 'critical',
+        message: 'Không thể resolve IPv4 address',
+        details: error.message,
+        solution: {
+          title: 'Thêm A Record',
+          steps: [
+            '1. Đăng nhập vào DNS provider (Cloudflare, Route53, etc.)',
+            '2. Tạo A record mới:',
+            '   - Name: @ hoặc www',
+            '   - Type: A',
+            '   - Value: IP address của server',
+            '   - TTL: 3600 (1 hour)',
+            '3. Đợi DNS propagation (có thể mất 5-60 phút)',
+            '4. Test bằng: dig ' + domain + ' A'
+          ],
+          reference: 'https://www.cloudflare.com/learning/dns/dns-records/dns-a-record/'
+        }
+      });
+    }
+
+    // AAAA Records
+    try {
+      const addresses = await dns.resolve6(domain);
+      report.categories[category].push({
+        test: 'AAAA Record Resolution',
+        status: 'pass',
+        severity: 'info',
+        message: `Tìm thấy ${addresses.length} IPv6 address(es)`,
+        details: addresses,
+        solution: null
+      });
+    } catch (error) {
+      report.categories[category].push({
+        test: 'AAAA Record Resolution',
+        status: 'warning',
+        severity: 'low',
+        message: 'Không có IPv6 address',
+        details: 'Website không hỗ trợ IPv6',
+        solution: {
+          title: 'Thêm IPv6 Support (Optional)',
+          steps: [
+            '1. Đảm bảo server có IPv6 address',
+            '2. Thêm AAAA record trong DNS:',
+            '   - Name: @ hoặc www',
+            '   - Type: AAAA',
+            '   - Value: IPv6 address của server',
+            '3. Test: dig ' + domain + ' AAAA'
+          ],
+          reference: 'https://www.cloudflare.com/learning/dns/dns-records/dns-aaaa-record/'
+        }
+      });
+    }
+
+    // MX Records
+    try {
+      const mxRecords = await dns.resolveMx(domain);
+      if (mxRecords.length === 0) {
+        report.categories[category].push({
+          test: 'MX Records',
+          status: 'warning',
+          severity: 'low',
+          message: 'Không có MX records',
+          details: 'Email không thể gửi đến domain này',
+          solution: {
+            title: 'Cấu hình Email',
+            steps: [
+              '1. Chọn email provider (Gmail, Outlook, etc.)',
+              '2. Thêm MX records theo hướng dẫn provider',
+              '3. Ví dụ Google Workspace:',
+              '   - MX: ASPMX.L.GOOGLE.COM (priority: 1)',
+              '   - MX: ALT1.ASPMX.L.GOOGLE.COM (priority: 5)',
+              '4. Test: dig ' + domain + ' MX'
+            ],
+            reference: 'https://support.google.com/a/answer/140034'
+          }
+        });
+      } else {
+        report.categories[category].push({
+          test: 'MX Records',
+          status: 'pass',
+          severity: 'info',
+          message: `Tìm thấy ${mxRecords.length} MX record(s)`,
+          details: mxRecords,
+          solution: null
+        });
+      }
+    } catch (error) {
+      // MX records are optional
+    }
+
+    // Nameservers
+    try {
+      const nameservers = await dns.resolveNs(domain);
+      report.categories[category].push({
+        test: 'Nameserver Resolution',
+        status: 'pass',
+        severity: 'info',
+        message: `Tìm thấy ${nameservers.length} nameserver(s)`,
+        details: nameservers,
+        solution: null
+      });
+    } catch (error) {
+      report.categories[category].push({
+        test: 'Nameserver Resolution',
+        status: 'fail',
+        severity: 'critical',
+        message: 'Không thể tìm nameservers',
+        details: error.message,
+        solution: {
+          title: 'Cấu hình Nameservers',
+          steps: [
+            '1. Đăng nhập vào domain registrar',
+            '2. Cập nhật nameservers:',
+            '   - Cloudflare: ns1.cloudflare.com, ns2.cloudflare.com',
+            '   - AWS: ns-xxx.awsdns-xx.com',
+            '   - Tùy theo DNS provider của bạn',
+            '3. Đợi propagation (24-48 giờ)',
+            '4. Test: dig ' + domain + ' NS'
+          ],
+          reference: 'https://www.cloudflare.com/learning/dns/dns-server-types/'
+        }
+      });
+    }
+
+  } catch (error) {
+    report.categories[category].push({
+      test: 'DNS Check',
+      status: 'fail',
+      severity: 'critical',
+      message: 'DNS check thất bại hoàn toàn',
+      details: error.message,
+      solution: {
+        title: 'Kiểm tra DNS Configuration',
+        steps: [
+          '1. Verify domain còn active (chưa expire)',
+          '2. Check nameservers tại registrar',
+          '3. Verify DNS records tại DNS provider',
+          '4. Clear local DNS cache: ipconfig /flushdns (Windows) hoặc sudo dscacheutil -flushcache (Mac)',
+          '5. Test với public DNS: 8.8.8.8 (Google) hoặc 1.1.1.1 (Cloudflare)'
+        ],
+        reference: 'https://www.whatsmydns.net/'
+      }
+    });
+  }
+}
+
+async function checkConnectivity(domain, report) {
+  const category = 'connectivity';
+  console.log(`[DEBUG] Checking connectivity for ${domain}...`);
+
+  const urlsToTest = [
+    { url: `https://${domain}`, protocol: 'HTTPS', priority: 'high' },
+    { url: `https://www.${domain}`, protocol: 'HTTPS with WWW', priority: 'medium' },
+    { url: `http://${domain}`, protocol: 'HTTP', priority: 'low' },
+    { url: `http://www.${domain}`, protocol: 'HTTP with WWW', priority: 'low' }
+  ];
+
+  let successCount = 0;
+  const results = [];
+
+  for (const test of urlsToTest) {
+    try {
+      const startTime = Date.now();
+      const response = await axiosInstance.get(test.url, {
+        timeout: 10000,
+        maxRedirects: 0,
+        validateStatus: () => true
+      });
+      const responseTime = Date.now() - startTime;
+
+      if (response.status < 400) {
+        successCount++;
+        results.push({
+          test: `${test.protocol} Connection`,
+          status: 'pass',
+          severity: 'info',
+          message: `Kết nối thành công (${responseTime}ms)`,
+          details: {
+            url: test.url,
+            statusCode: response.status,
+            responseTime: responseTime
+          },
+          solution: null
+        });
+      } else {
+        results.push({
+          test: `${test.protocol} Connection`,
+          status: 'fail',
+          severity: test.priority === 'high' ? 'critical' : 'medium',
+          message: `HTTP ${response.status} - ${getStatusMessage(response.status)}`,
+          details: {
+            url: test.url,
+            statusCode: response.status
+          },
+          solution: getHTTPErrorSolution(response.status, domain)
+        });
+      }
+    } catch (error) {
+      results.push({
+        test: `${test.protocol} Connection`,
+        status: 'fail',
+        severity: test.priority === 'high' ? 'critical' : 'low',
+        message: `Không thể kết nối: ${error.code || error.message}`,
+        details: {
+          url: test.url,
+          error: error.message
+        },
+        solution: getConnectionErrorSolution(error, domain)
+      });
+    }
+  }
+
+  if (successCount === 0) {
+    report.categories[category].push({
+      test: 'Overall Connectivity',
+      status: 'fail',
+      severity: 'critical',
+      message: 'KHÔNG THỂ KẾT NỐI VỚI WEBSITE QUA TẤT CẢ CÁC PHƯƠNG THỨC',
+      details: 'Đã thử HTTPS, HTTP, với và không có www',
+      solution: {
+        title: 'Khắc phục kết nối',
+        steps: [
+          '1. Verify server đang chạy:',
+          '   - SSH vào server: ssh user@server-ip',
+          '   - Check web server: systemctl status nginx/apache2',
+          '   - Restart nếu cần: systemctl restart nginx',
+          '2. Check firewall:',
+          '   - Port 80 (HTTP) phải mở',
+          '   - Port 443 (HTTPS) phải mở',
+          '   - ufw allow 80/tcp && ufw allow 443/tcp',
+          '3. Check DNS A record trỏ đúng IP server',
+          '4. Verify web server config:',
+          '   - nginx -t (test config)',
+          '   - Check server_name trong config'
+        ],
+        reference: 'https://www.digitalocean.com/community/tutorials/how-to-troubleshoot-common-nginx-errors'
+      }
+    });
+  }
+
+  report.categories[category].push(...results);
+}
+
+async function checkSSL(domain, report) {
+  const category = 'ssl';
+  console.log(`[DEBUG] Checking SSL for ${domain}...`);
+
+  try {
+    const response = await axiosInstance.get(`https://${domain}`, {
+      timeout: 10000,
+      maxRedirects: 5
+    });
+
+    report.categories[category].push({
+      test: 'SSL/TLS Connection',
+      status: 'pass',
+      severity: 'info',
+      message: 'SSL certificate hoạt động (có thể self-signed)',
+      details: 'HTTPS connection successful',
+      solution: null
+    });
+
+    // Check HSTS
+    if (response.headers['strict-transport-security']) {
+      report.categories[category].push({
+        test: 'HSTS Header',
+        status: 'pass',
+        severity: 'info',
+        message: 'HSTS được cấu hình',
+        details: response.headers['strict-transport-security'],
+        solution: null
+      });
+    } else {
+      report.categories[category].push({
+        test: 'HSTS Header',
+        status: 'warning',
+        severity: 'medium',
+        message: 'Thiếu HSTS header',
+        details: 'Website không force HTTPS',
+        solution: {
+          title: 'Enable HSTS',
+          steps: [
+            '1. Nginx: Thêm vào server block:',
+            '   add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;',
+            '2. Apache: Thêm vào .htaccess hoặc VirtualHost:',
+            '   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"',
+            '3. Cloudflare: SSL/TLS → Edge Certificates → Enable HSTS',
+            '4. Test: curl -I https://' + domain + ' | grep Strict'
+          ],
+          reference: 'https://hstspreload.org/'
+        }
+      });
+    }
+
+  } catch (error) {
+    if (error.code === 'EPROTO' || error.message.includes('SSL') || error.message.includes('CERT')) {
+      report.categories[category].push({
+        test: 'SSL/TLS Connection',
+        status: 'fail',
+        severity: 'critical',
+        message: 'SSL certificate không hợp lệ',
+        details: error.message,
+        solution: {
+          title: 'Cài đặt SSL Certificate',
+          steps: [
+            '1. Sử dụng Let\'s Encrypt (FREE):',
+            '   sudo apt install certbot python3-certbot-nginx',
+            '   sudo certbot --nginx -d ' + domain + ' -d www.' + domain,
+            '2. Hoặc mua SSL từ:',
+            '   - Cloudflare (Free)',
+            '   - DigiCert',
+            '   - GlobalSign',
+            '3. Verify certificate:',
+            '   openssl s_client -connect ' + domain + ':443',
+            '4. Set auto-renewal:',
+            '   sudo certbot renew --dry-run'
+          ],
+          reference: 'https://letsencrypt.org/getting-started/'
+        }
+      });
+    } else {
+      report.categories[category].push({
+        test: 'SSL/TLS Connection',
+        status: 'fail',
+        severity: 'high',
+        message: 'Không thể kết nối HTTPS',
+        details: error.message,
+        solution: {
+          title: 'Enable HTTPS',
+          steps: [
+            '1. Cài đặt SSL certificate (xem hướng dẫn trên)',
+            '2. Configure web server cho HTTPS:',
+            '   Nginx: listen 443 ssl;',
+            '   Apache: <VirtualHost *:443>',
+            '3. Redirect HTTP sang HTTPS:',
+            '   Nginx: return 301 https://$server_name$request_uri;',
+            '   Apache: RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]',
+            '4. Open port 443 on firewall',
+            '5. Test: curl -I https://' + domain
+          ],
+          reference: 'https://certbot.eff.org/'
+        }
+      });
+    }
+  }
+}
+
+async function checkHTTP(domain, report) {
+  const category = 'http';
+  console.log(`[DEBUG] Checking HTTP response for ${domain}...`);
+
+  try {
+    const response = await axiosInstance.get(`https://${domain}`, {
+      timeout: 15000,
+      maxRedirects: 10,
+      validateStatus: () => true
+    });
+
+    // Status code check
+    if (response.status >= 200 && response.status < 300) {
+      report.categories[category].push({
+        test: 'HTTP Status Code',
+        status: 'pass',
+        severity: 'info',
+        message: `Status ${response.status} - OK`,
+        details: response.statusText,
+        solution: null
+      });
+    } else if (response.status >= 300 && response.status < 400) {
+      report.categories[category].push({
+        test: 'HTTP Status Code',
+        status: 'warning',
+        severity: 'medium',
+        message: `Status ${response.status} - Redirect`,
+        details: `Location: ${response.headers.location || 'N/A'}`,
+        solution: null
+      });
+    } else if (response.status >= 400 && response.status < 500) {
+      report.categories[category].push({
+        test: 'HTTP Status Code',
+        status: 'fail',
+        severity: 'high',
+        message: `Status ${response.status} - Client Error`,
+        details: getStatusMessage(response.status),
+        solution: getHTTPErrorSolution(response.status, domain)
+      });
+    } else {
+      report.categories[category].push({
+        test: 'HTTP Status Code',
+        status: 'fail',
+        severity: 'critical',
+        message: `Status ${response.status} - Server Error`,
+        details: getStatusMessage(response.status),
+        solution: getHTTPErrorSolution(response.status, domain)
+      });
+    }
+
+    // Content-Type check
+    const contentType = response.headers['content-type'];
+    if (contentType) {
+      report.categories[category].push({
+        test: 'Content-Type Header',
+        status: 'pass',
+        severity: 'info',
+        message: 'Content-Type được set',
+        details: contentType,
+        solution: null
+      });
+    } else {
+      report.categories[category].push({
+        test: 'Content-Type Header',
+        status: 'warning',
+        severity: 'low',
+        message: 'Thiếu Content-Type header',
+        details: 'Browser có thể hiển thị sai',
+        solution: {
+          title: 'Set Content-Type',
+          steps: [
+            'Nginx: default_type text/html;',
+            'Apache: AddDefaultCharset UTF-8',
+            'PHP: header("Content-Type: text/html; charset=UTF-8");'
+          ]
+        }
+      });
+    }
+
+  } catch (error) {
+    report.categories[category].push({
+      test: 'HTTP Response',
+      status: 'fail',
+      severity: 'critical',
+      message: 'Không nhận được HTTP response',
+      details: error.message,
+      solution: getConnectionErrorSolution(error, domain)
+    });
+  }
+}
+
+async function checkPerformance(domain, report) {
+  const category = 'performance';
+  console.log(`[DEBUG] Checking performance for ${domain}...`);
+
+  try {
+    const startTime = Date.now();
+    const response = await axiosInstance.get(`https://${domain}`, {
+      timeout: 30000,
+      maxRedirects: 5
+    });
+    const totalTime = Date.now() - startTime;
+
+    // Response time
+    if (totalTime < 1000) {
+      report.categories[category].push({
+        test: 'Response Time',
+        status: 'pass',
+        severity: 'info',
+        message: `Rất nhanh: ${totalTime}ms`,
+        details: 'Website phản hồi dưới 1 giây',
+        solution: null
+      });
+    } else if (totalTime < 3000) {
+      report.categories[category].push({
+        test: 'Response Time',
+        status: 'warning',
+        severity: 'low',
+        message: `Chấp nhận được: ${totalTime}ms`,
+        details: 'Có thể cải thiện performance',
+        solution: {
+          title: 'Tối ưu Performance',
+          steps: [
+            '1. Enable caching:',
+            '   - Browser caching',
+            '   - Server-side caching (Redis, Memcached)',
+            '2. Use CDN (Cloudflare, CloudFront)',
+            '3. Optimize images (WebP format)',
+            '4. Minify CSS/JS',
+            '5. Enable Gzip compression'
+          ],
+          reference: 'https://web.dev/fast/'
+        }
+      });
+    } else {
+      report.categories[category].push({
+        test: 'Response Time',
+        status: 'fail',
+        severity: 'medium',
+        message: `Quá chậm: ${totalTime}ms`,
+        details: 'Website cần tối ưu performance',
+        solution: {
+          title: 'Cải thiện Performance Khẩn cấp',
+          steps: [
+            '1. Check server resources:',
+            '   - CPU usage',
+            '   - RAM usage',
+            '   - Disk I/O',
+            '2. Optimize database queries',
+            '3. Enable caching layers',
+            '4. Use CDN',
+            '5. Upgrade server nếu cần',
+            '6. Consider load balancing'
+          ],
+          reference: 'https://gtmetrix.com/'
+        }
+      });
+    }
+
+    // Content size
+    const contentLength = response.headers['content-length'];
+    if (contentLength) {
+      const sizeInKB = parseInt(contentLength) / 1024;
+      if (sizeInKB < 100) {
+        report.categories[category].push({
+          test: 'Page Size',
+          status: 'pass',
+          severity: 'info',
+          message: `Tối ưu: ${sizeInKB.toFixed(2)} KB`,
+          details: 'Kích thước trang nhỏ gọn',
+          solution: null
+        });
+      } else if (sizeInKB < 500) {
+        report.categories[category].push({
+          test: 'Page Size',
+          status: 'warning',
+          severity: 'low',
+          message: `Trung bình: ${sizeInKB.toFixed(2)} KB`,
+          details: 'Có thể giảm kích thước',
+          solution: {
+            title: 'Giảm Page Size',
+            steps: [
+              '1. Optimize images',
+              '2. Minify CSS/JS',
+              '3. Remove unused code',
+              '4. Lazy load images'
+            ]
+          }
+        });
+      } else {
+        report.categories[category].push({
+          test: 'Page Size',
+          status: 'fail',
+          severity: 'medium',
+          message: `Quá lớn: ${sizeInKB.toFixed(2)} KB`,
+          details: 'Trang nặng, load chậm',
+          solution: {
+            title: 'Optimize Page Size',
+            steps: [
+              '1. Compress images aggressively',
+              '2. Split code bundles',
+              '3. Use lazy loading',
+              '4. Remove unnecessary libraries',
+              '5. Use modern image formats (WebP, AVIF)'
+            ]
+          }
+        });
+      }
+    }
+
+  } catch (error) {
+    // Performance check failed - already logged in connectivity
+  }
+}
+
+async function checkConfiguration(domain, report) {
+  const category = 'configuration';
+  console.log(`[DEBUG] Checking configuration for ${domain}...`);
+
+  try {
+    const response = await axiosInstance.get(`https://${domain}`, {
+      timeout: 10000,
+      maxRedirects: 5
+    });
+
+    // Server header
+    const server = response.headers['server'];
+    if (server) {
+      if (server.includes('/') || /\d+\.\d+/.test(server)) {
+        report.categories[category].push({
+          test: 'Server Header',
+          status: 'warning',
+          severity: 'low',
+          message: 'Server header tiết lộ version',
+          details: server,
+          solution: {
+            title: 'Ẩn Server Version',
+            steps: [
+              'Nginx: server_tokens off; trong nginx.conf',
+              'Apache: ServerTokens Prod trong httpd.conf',
+              'Restart web server'
+            ]
+          }
+        });
+      }
+    }
+
+    // X-Powered-By header
+    if (response.headers['x-powered-by']) {
+      report.categories[category].push({
+        test: 'X-Powered-By Header',
+        status: 'warning',
+        severity: 'low',
+        message: 'Tiết lộ technology stack',
+        details: response.headers['x-powered-by'],
+        solution: {
+          title: 'Remove X-Powered-By',
+          steps: [
+            'PHP: expose_php = Off trong php.ini',
+            'Express: app.disable("x-powered-by");',
+            'ASP.NET: <httpProtocol><customHeaders><remove name="X-Powered-By" /></customHeaders></httpProtocol>'
+          ]
+        }
+      });
+    }
+
+  } catch (error) {
+    // Config check failed
+  }
+}
+
+function calculateSummary(report) {
+  for (const category in report.categories) {
+    report.categories[category].forEach(check => {
+      if (check.status === 'fail') {
+        report.summary.totalIssues++;
+        if (check.severity === 'critical') {
+          report.summary.criticalIssues++;
+        }
+      } else if (check.status === 'warning') {
+        report.summary.totalIssues++;
+        report.summary.warnings++;
+      } else if (check.status === 'pass') {
+        report.summary.passed++;
+      }
+    });
+  }
+}
+
+function generateRecommendations(report) {
+  if (report.summary.criticalIssues > 0) {
+    report.recommendations.push({
+      priority: 'critical',
+      title: 'KHẮC PHỤC LỖI NGHIÊM TRỌNG NGAY',
+      description: `Website có ${report.summary.criticalIssues} lỗi nghiêm trọng cần xử lý ưu tiên.`,
+      action: 'Xem chi tiết trong các categories bên dưới và làm theo hướng dẫn Solution.'
+    });
+  }
+
+  if (report.summary.warnings > 3) {
+    report.recommendations.push({
+      priority: 'high',
+      title: 'Cải thiện Configuration',
+      description: `Website có ${report.summary.warnings} cảnh báo về configuration và security.`,
+      action: 'Review tất cả warnings và implement các best practices được đề xuất.'
+    });
+  }
+
+  if (report.summary.passed > 0 && report.summary.totalIssues === 0) {
+    report.recommendations.push({
+      priority: 'low',
+      title: 'Website hoạt động tốt!',
+      description: 'Tất cả kiểm tra đều passed.',
+      action: 'Duy trì monitoring và regular updates.'
+    });
+  }
+}
+
+// Helper functions
+function getStatusMessage(statusCode) {
+  const messages = {
+    400: 'Bad Request - Yêu cầu không hợp lệ',
+    401: 'Unauthorized - Cần authentication',
+    403: 'Forbidden - Không có quyền truy cập',
+    404: 'Not Found - Không tìm thấy trang',
+    500: 'Internal Server Error - Lỗi server',
+    502: 'Bad Gateway - Gateway lỗi',
+    503: 'Service Unavailable - Service không khả dụng',
+    504: 'Gateway Timeout - Gateway timeout'
+  };
+  return messages[statusCode] || `HTTP ${statusCode}`;
+}
+
+function getHTTPErrorSolution(statusCode, domain) {
+  const solutions = {
+    404: {
+      title: 'Fix 404 Not Found',
+      steps: [
+        '1. Check URL spelling',
+        '2. Verify file exists trên server:',
+        '   ls -la /var/www/html/index.html',
+        '3. Check web server root directory:',
+        '   Nginx: root /var/www/html; trong server block',
+        '   Apache: DocumentRoot /var/www/html',
+        '4. Check file permissions:',
+        '   chmod 644 /var/www/html/index.html',
+        '   chown www-data:www-data /var/www/html/index.html',
+        '5. Restart web server'
+      ],
+      reference: 'https://httpstatuses.com/404'
+    },
+    403: {
+      title: 'Fix 403 Forbidden',
+      steps: [
+        '1. Check file permissions:',
+        '   chmod 755 /var/www/html',
+        '   chmod 644 /var/www/html/index.html',
+        '2. Check ownership:',
+        '   chown -R www-data:www-data /var/www/html',
+        '3. Check web server config:',
+        '   Nginx: location / { try_files $uri $uri/ =404; }',
+        '   Apache: <Directory /var/www/html> Require all granted </Directory>',
+        '4. Check .htaccess file',
+        '5. Disable SELinux temporarily để test: setenforce 0'
+      ],
+      reference: 'https://httpstatuses.com/403'
+    },
+    500: {
+      title: 'Fix 500 Internal Server Error',
+      steps: [
+        '1. Check error logs:',
+        '   tail -f /var/log/nginx/error.log',
+        '   tail -f /var/log/apache2/error.log',
+        '2. Check PHP errors (nếu có):',
+        '   tail -f /var/log/php-fpm/error.log',
+        '3. Common causes:',
+        '   - Syntax error trong code',
+        '   - Thiếu PHP extensions',
+        '   - Database connection failed',
+        '   - Memory limit exceeded',
+        '4. Test web server config:',
+        '   nginx -t',
+        '   apache2ctl configtest',
+        '5. Restart services'
+      ],
+      reference: 'https://httpstatuses.com/500'
+    },
+    502: {
+      title: 'Fix 502 Bad Gateway',
+      steps: [
+        '1. Check backend service:',
+        '   systemctl status php-fpm',
+        '   systemctl status php7.4-fpm',
+        '2. Check PHP-FPM socket/port:',
+        '   Nginx: fastcgi_pass unix:/run/php/php-fpm.sock;',
+        '   Hoặc: fastcgi_pass 127.0.0.1:9000;',
+        '3. Restart PHP-FPM:',
+        '   systemctl restart php-fpm',
+        '4. Check logs cho PHP errors',
+        '5. Increase timeout nếu cần:',
+        '   fastcgi_read_timeout 300;'
+      ],
+      reference: 'https://httpstatuses.com/502'
+    },
+    503: {
+      title: 'Fix 503 Service Unavailable',
+      steps: [
+        '1. Check server đang chạy:',
+        '   systemctl status nginx',
+        '   systemctl status apache2',
+        '2. Check server resources:',
+        '   free -h (RAM)',
+        '   df -h (Disk)',
+        '   top (CPU)',
+        '3. Check maintenance mode',
+        '4. Check max connections:',
+        '   Nginx: worker_connections 1024;',
+        '5. Restart web server'
+      ],
+      reference: 'https://httpstatuses.com/503'
+    }
+  };
+
+  return solutions[statusCode] || {
+    title: `Fix HTTP ${statusCode}`,
+    steps: [
+      '1. Check web server error logs',
+      '2. Google: "HTTP ' + statusCode + ' error"',
+      '3. Check web server documentation',
+      '4. Restart web server',
+      '5. Contact hosting support nếu vẫn lỗi'
+    ],
+    reference: 'https://httpstatuses.com/' + statusCode
+  };
+}
+
+function getConnectionErrorSolution(error, domain) {
+  const errorCode = error.code || error.message;
+
+  if (errorCode.includes('ECONNREFUSED')) {
+    return {
+      title: 'Connection Refused',
+      steps: [
+        '1. Web server không chạy:',
+        '   systemctl status nginx',
+        '   systemctl start nginx',
+        '2. Port không mở:',
+        '   netstat -tlnp | grep :80',
+        '   netstat -tlnp | grep :443',
+        '3. Firewall block:',
+        '   ufw allow 80/tcp',
+        '   ufw allow 443/tcp',
+        '4. Check A record trỏ đúng IP',
+        '5. Test local: curl localhost'
+      ],
+      reference: 'https://www.digitalocean.com/community/questions/nginx-econnrefused'
+    };
+  }
+
+  if (errorCode.includes('ETIMEDOUT')) {
+    return {
+      title: 'Connection Timeout',
+      steps: [
+        '1. Server quá chậm hoặc down',
+        '2. Check server status',
+        '3. Check firewall rules',
+        '4. Check cloud security groups (AWS, GCP)',
+        '5. Increase timeout nếu server chậm',
+        '6. Check DDoS protection settings'
+      ],
+      reference: 'https://docs.nginx.com/nginx/admin-guide/web-server/reverse-proxy/'
+    };
+  }
+
+  if (errorCode.includes('ENOTFOUND')) {
+    return {
+      title: 'DNS Not Found',
+      steps: [
+        '1. Domain chưa trỏ DNS:',
+        '   dig ' + domain,
+        '2. Thêm A record trong DNS:',
+        '   @ IN A <server-ip>',
+        '   www IN A <server-ip>',
+        '3. Đợi DNS propagation (5-60 phút)',
+        '4. Clear DNS cache:',
+        '   ipconfig /flushdns (Windows)',
+        '   sudo dscacheutil -flushcache (Mac)',
+        '5. Test với public DNS: 8.8.8.8'
+      ],
+      reference: 'https://www.whatsmydns.net/'
+    };
+  }
+
+  return {
+    title: 'Connection Error',
+    steps: [
+      '1. Check server đang chạy',
+      '2. Check DNS records',
+      '3. Check firewall',
+      '4. Check web server logs',
+      '5. Test từ server: curl localhost',
+      '6. Test từ bên ngoài: curl ' + domain
+    ],
+    reference: 'https://www.digitalocean.com/community/tutorials/how-to-troubleshoot-common-nginx-errors'
+  };
+}
+
+module.exports = { debugWebsite };

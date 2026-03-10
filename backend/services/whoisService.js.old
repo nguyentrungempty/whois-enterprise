@@ -1,19 +1,142 @@
 const whois = require('whois');
-const { exec } = require("child_process");
+
+// WHOIS servers for specific TLDs
+const WHOIS_SERVERS = {
+    'vn': 'whois.vnnic.vn',
+    'com': 'whois.verisign-grs.com',
+    'com.vn': 'whois.vnnic.vn',
+    'net': 'whois.verisign-grs.com',
+    'net.vn': 'whois.vnnic.vn',
+    'org.vn': 'whois.vnnic.vn',
+    'edu.vn': 'whois.vnnic.vn',
+    'gov.vn': 'whois.vnnic.vn',
+    'cn': 'whois.cnnic.cn',
+    'jp': 'whois.jprs.jp',
+    'kr': 'whois.kr',
+    'tw': 'whois.twnic.net.tw',
+    'hk': 'whois.hkirc.hk',
+    'sg': 'whois.sgnic.sg',
+    'th': 'whois.thnic.co.th',
+    'my': 'whois.mynic.my',
+    'id': 'whois.id',
+    'ph': 'whois.dot.ph'
+};
 
 async function getWhoisInfo(domain) {
-    return new Promise((resolve, reject) => {
-        exec(`whois ${domain}`, { timeout: 5000 }, (err, data) => {
-            if (err) {
-                reject(err);
-                return;
+    try {
+        // Get TLD
+        const parts = domain.toLowerCase().split('.');
+        let tld = parts[parts.length - 1];
+
+        // Check for second-level domain (e.g., com.vn)
+        if (parts.length > 2) {
+            const secondLevel = `${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+            if (WHOIS_SERVERS[secondLevel]) {
+                tld = secondLevel;
+            }
+        }
+
+        // Get appropriate WHOIS server
+        const server = WHOIS_SERVERS[tld];
+
+        return new Promise((resolve, reject) => {
+            const options = {
+                timeout: 10000,
+                follow: 2
+            };
+
+            // Add server if we have a specific one
+            if (server) {
+                options.server = server;
             }
 
-            const parsed = parseWhoisData(data);
-            resolve(parsed);
-        });
-    });
+            whois.lookup(domain, options, (err, data) => {
+                if (err) {
+                    // If error, try to provide helpful information
+                    const errorMsg = err.message || err.toString();
 
+                    if (errorMsg.includes('no whois server') || errorMsg.includes('ENOTFOUND')) {
+                        resolve({
+                            error: `WHOIS server không khả dụng cho tên miền .${tld}`,
+                            message: `Tên miền ${domain} không thể truy vấn WHOIS tự động. Vui lòng truy cập trực tiếp: ${getWhoisWebsite(tld)}`,
+                            manualCheck: getWhoisWebsite(tld),
+                            tld: tld,
+                            domain: domain
+                        });
+                    } else if (errorMsg.includes('timeout') || errorMsg.includes('ETIMEDOUT')) {
+                        resolve({
+                            error: 'WHOIS server không phản hồi (timeout)',
+                            message: `Không thể kết nối đến WHOIS server cho .${tld}. Vui lòng thử lại sau hoặc truy cập: ${getWhoisWebsite(tld)}`,
+                            manualCheck: getWhoisWebsite(tld),
+                            tld: tld,
+                            domain: domain
+                        });
+                    } else {
+                        resolve({
+                            error: 'Lỗi truy vấn WHOIS',
+                            message: errorMsg,
+                            manualCheck: getWhoisWebsite(tld),
+                            tld: tld,
+                            domain: domain
+                        });
+                    }
+                    return;
+                }
+
+                if (!data || data.trim().length === 0) {
+                    resolve({
+                        error: 'Không có dữ liệu WHOIS',
+                        message: `WHOIS server không trả về dữ liệu cho ${domain}`,
+                        manualCheck: getWhoisWebsite(tld),
+                        tld: tld,
+                        domain: domain
+                    });
+                    return;
+                }
+
+                const parsed = parseWhoisData(data);
+                parsed.domain = domain;
+                parsed.tld = tld;
+
+                // If no useful data was parsed, return error
+                if (!parsed.registrar && !parsed.creationDate && !parsed.nameServers.length) {
+                    resolve({
+                        error: 'Không thể parse dữ liệu WHOIS',
+                        message: 'WHOIS data không đủ thông tin hoặc format không được hỗ trợ',
+                        raw: data,
+                        manualCheck: getWhoisWebsite(tld),
+                        tld: tld,
+                        domain: domain
+                    });
+                    return;
+                }
+
+                resolve(parsed);
+            });
+        });
+    } catch (error) {
+        return {
+            error: 'Exception khi truy vấn WHOIS',
+            message: error.message,
+            domain: domain
+        };
+    }
+}
+
+function getWhoisWebsite(tld) {
+    const websites = {
+        'vn': 'https://www.vnnic.vn/whois-information',
+        'com.vn': 'https://www.vnnic.vn/whois-information',
+        'net.vn': 'https://www.vnnic.vn/whois-information',
+        'cn': 'https://whois.cnnic.cn/',
+        'jp': 'https://whois.jprs.jp/',
+        'kr': 'https://whois.kr/',
+        'tw': 'https://www.twnic.net.tw/',
+        'hk': 'https://www.hkirc.hk/whois/',
+        'default': 'https://www.whois.com/whois/'
+    };
+
+    return websites[tld] || websites['default'] + tld;
 }
 
 function parseDate(dateString) {
