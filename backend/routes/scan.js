@@ -8,6 +8,7 @@ const techService = require('../services/techService');
 const riskEngine = require('../services/riskEngine');
 const debugService = require('../services/debugService');
 const sitemapService = require('../services/sitemapService');
+const malwareService = require('../services/malwareService');
 const { getScreenshot } = require('../services/screenshotService');
 const validator = require('../utils/validator');
 
@@ -144,6 +145,32 @@ router.get('/sitemap', async (req, res) => {
     res.json(sitemapData);
   } catch (error) {
     console.error('[API] Sitemap error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get('/malware', async (req, res) => {
+  try {
+    let { domain } = req.query;
+
+    if (!domain) {
+      return res.status(400).json({ error: 'Tham số miền là bắt buộc' });
+    }
+
+    // Extract clean domain from URL
+    domain = validator.extractDomain(domain);
+
+    if (!validator.isValidDomain(domain)) {
+      return res.status(400).json({ error: 'Định dạng miền không hợp lệ' });
+    }
+
+    console.log(`[API] Scanning malware for domain: ${domain}`);
+    
+    const malwareData = await malwareService.scanMalware(domain);
+    
+    res.json(malwareData);
+  } catch (error) {
+    console.error('[API] Malware scan error:', error);
     res.status(500).json({ error: error.message });
   }
 });
